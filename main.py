@@ -1,4 +1,3 @@
-# main.py
 import os
 import uuid
 import httpx
@@ -44,7 +43,6 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# Kľúčové slová prispôsobené pre Českú nádrž
 KEYWORDS = {
     "doprava":["doprava", "dovoz", "rozvoz", "zadarmo", "zdarma", "dodavka", "ridic", "skladani"],
     "kontakt":["kontakt", "telefon", "email", "adresa", "kde vas najdem", "kde vas najdu", "spojeni"],
@@ -62,6 +60,33 @@ def detect_page_section(message: str) -> Optional[str]:
 @app.get("/")
 async def health_check():
     return {"status": "Česká nádrž Bot is running", "version": "1.0.beta"}
+
+# ==========================================
+# TESTOVACIA STRÁNKA (TOTO SOM OMYLOM ZMAZAL)
+# ==========================================
+@app.get("/test", response_class=HTMLResponse)
+async def test_page():
+    return """
+    <!DOCTYPE html>
+    <html lang="cs">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Česká nádrž Bot Test</title>
+        <style>
+            body { 
+                margin: 0;
+                padding: 0;
+                height: 100vh; 
+                background: #f9fafb; /* Svetlé pozadie pre e-shop test */
+            }
+        </style>
+    </head>
+    <body>
+        <script src="/static/js/chat.js"></script>
+    </body>
+    </html>
+    """
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -85,7 +110,6 @@ async def chat(request: ChatRequest):
         "- Komunikuj profesionálně, přátelsky, v češtině a zákazníkům vykej.\n"
     )
     
-    # Udržujeme len posledných 10 správ, aby sme neprekročili tokeny a bot mal kontext
     messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
@@ -126,7 +150,3 @@ async def chat(request: ChatRequest):
     except Exception as e:
         print(f"Server Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
