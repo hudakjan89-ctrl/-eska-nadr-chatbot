@@ -37,9 +37,6 @@ class ChatResponse(BaseModel):
     session_id: str
     page_section: Optional[str] = None
 
-# ==========================================
-# DETEKCIA SEKCIE PRE PRESMEROVANIE NA WEBE
-# ==========================================
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
@@ -61,9 +58,6 @@ def detect_page_section(message: str) -> Optional[str]:
 async def health_check():
     return {"status": "Česká nádrž Bot is running", "version": "1.0.beta"}
 
-# ==========================================
-# TESTOVACIA STRÁNKA (TOTO SOM OMYLOM ZMAZAL)
-# ==========================================
 @app.get("/test", response_class=HTMLResponse)
 async def test_page():
     return """
@@ -73,14 +67,7 @@ async def test_page():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Česká nádrž Bot Test</title>
-        <style>
-            body { 
-                margin: 0;
-                padding: 0;
-                height: 100vh; 
-                background: #f9fafb; /* Svetlé pozadie pre e-shop test */
-            }
-        </style>
+        <style>body { margin: 0; padding: 0; height: 100vh; background: #e5e7eb; }</style>
     </head>
     <body>
         <script src="/static/js/chat.js"></script>
@@ -97,20 +84,23 @@ async def chat(request: ChatRequest):
     
     sessions[session_id].append({"role": "user", "content": request.message})
     
+    lang_instruction = "Odpovídej česky."
+    if request.language == "sk": lang_instruction = "VŽDY odpovídej slovensky!"
+    elif request.language == "en": lang_instruction = "VŽDY odpovídej anglicky!"
+    
     system_prompt = (
         f"Jsi AI nákupní asistent a zákaznická podpora pro e-shop Česká nádrž.\n\n"
-        f"ZDE JSOU TVÉ ZNALOSTI (Z NICH ČERPEJ):\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
-        "TVÉ HLAVNÍ ÚKOLY A CHOVÁNÍ:\n"
-        "1. FAQ: Odpovídat na dotazy ohledně dopravy (je zdarma), platby (nelze kartou u řidiče) a kvality. Buď stručný a jasný.\n"
-        "2. NÁKUPNÍ ASISTENT: Pokud zákazník neví, jakou nádrž vybrat, NEPOSÍLEJ mu rovnou seznam. Postupně se ho ptej na 3 věci: 1. Účel, 2. Objem, 3. Podloží (zda je tam spodní voda, jíl nebo svah). Ptej se max na 1-2 věci v jedné zprávě, ať je to konverzace.\n"
-        "3. EMAIL HANDOFF: Pokud se zákazník ptá na složité technické řešení (atypické rozměry, výška přítoku, hydrogeologie, stav objednávky), OMLUV SE, že jsi jen AI asistent, a VYZVI HO K ZADÁNÍ EMAILU A TELEFONU, aby se mu mohl ozvat technik Petr. Pokud ti zákazník pošle svůj email/telefon, poděkuj mu, řekni, že to předáváš kolegům, a ukonči technické poradenství.\n\n"
-        "ABSOLUTNÍ PRAVIDLA:\n"
-        "- NIKDY nepoužívej hvězdičky (**) ani jiné složité formátování (Markdown bold/italic).\n"
-        "- NIKDY si nevymýšlej produkty, ceny nebo termíny dodání, které nejsou v tvých znalostech.\n"
-        "- Komunikuj profesionálně, přátelsky, v češtině a zákazníkům vykej.\n"
+        f"ZDE JSOU TVÉ ZNALOSTI:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
+        "TVÉ HLAVNÍ ÚKOLY:\n"
+        "1. FAQ: Odpovídat na dotazy ohledně dopravy, platby a kvality.\n"
+        "2. NÁKUPNÍ ASISTENT: Ptej se zákazníka na Účel, Objem a Podloží (max 1 otázka naráz).\n"
+        "3. EMAIL HANDOFF: Při složitých dotazech si vyžádej email/telefon pro technika Petra.\n\n"
+        "PRAVIDLA:\n"
+        "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
+        f"- DŮLEŽITÉ: Zákazník si v menu vybral jazyk. {lang_instruction}\n"
     )
     
-    messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
+    messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -130,15 +120,10 @@ async def chat(request: ChatRequest):
                 }
             )
             
-            if response.status_code != 200:
-                print(f"AI Error: {response.text}")
-                raise HTTPException(status_code=response.status_code, detail="AI Service Error")
-            
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
-            
             detected_section = detect_page_section(request.message)
             
             return ChatResponse(
@@ -148,5 +133,4 @@ async def chat(request: ChatRequest):
             )
             
     except Exception as e:
-        print(f"Server Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
