@@ -512,6 +512,20 @@ DĚLITELNOST PODMÍNEK:
     ustanovení, jehož smysl se mu co nejvíce přibližuje
   - Neplatnost jednoho ustanovení se netýká platnosti ostatních
 
+-----------------------------------------------------------------------
+SEKCE 13 — DOPORUČENÝ PRODUKT PRO ZALÉVÁNÍ (BETA SCÉNÁŘ)
+-----------------------------------------------------------------------
+Název:           10m3 nádrž na vodu + set ZAHRADA STANDARD
+Kategorie:       Sety nádrží na vodu pro zalévaní
+Záruka:          2 roky
+Objem:           10 000 litrů (10m3)
+Materiál:        plast
+Užití:           na dešťovou vodu, retenční, ideální na zahradu
+Rozměry:
+  Vnitřní průměr: 2550 mm
+  Vnější průměr:  2600 mm
+  Výška bez kom.: 2000 mm
+  Výška komínku:  200 mm (možno prodloužit)
 
 =======================================================================
 KONEC DATABÁZE — ŠPAČEK PLAST s.r.o. / ČESKÁ NÁDRŽ
