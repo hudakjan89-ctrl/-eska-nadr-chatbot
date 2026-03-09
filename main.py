@@ -40,17 +40,21 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# MAPOVANIE KĽÚČOVÝCH SLOV PRIAMO NA TVOJE URL ADRESY
+# ==========================================
+# OPRAVENÉ MAPOVANIE URL ADRIES 
+# (Produkty musia byť hore, kategórie dole!)
+# ==========================================
 URL_MAP = {
-    # SEKCIE
+    # 1. NAJPRV ŠPECIFICKÉ PRODUKTY (Ak zákazník uvedie presný detail)
+    "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/": ["1m3", "1 kubik", "mala nadrz"],
+    "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/": ["mini sachta", "sachta mini", "mini sachtu"],
+    "https://www.ceskanadrz.cz/cisticka-odpadnich-vod-pro-2-5-osob-at6/":["at6", "pro 2", "pro 5", "pro 4", "at 6"],
+    
+    # 2. AŽ POTOM VŠEOBECNÉ SEKCIE (Ak nezadal nič špecifické, pošleme ho do kategórie)
     "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-k-obetonovani/":["sachta na vrt", "sachtu na vrt", "sachty na vrt"],
-    "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/": ["precerpavaci", "precerpavack"],
-    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/":["cistirn", "cistick", "cov", "odpadnich vod"],
-    # SPECIFICKÉ PRODUKTY
-    "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/": ["1m3", "1 kubik", "mala nadrz"],
-    "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/": ["mini sachta", "sachta mini"],
-    "https://www.ceskanadrz.cz/automaticka-cisticka-odpadnich-vod-pro-2-5-osob-at6-plus/":["at6", "pro 2", "pro 5", "at6 plus"]
+    "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/":["precerpavaci", "precerpavack"],
+    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/": ["cistirn", "cistick", "cov", "odpadnich vod"]
 }
 
 def detect_page_section(message: str) -> Optional[str]:
@@ -62,7 +66,7 @@ def detect_page_section(message: str) -> Optional[str]:
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Bot is running", "version": "1.1"}
+    return {"status": "Česká nádrž Bot is running", "version": "1.2"}
 
 @app.get("/test", response_class=HTMLResponse)
 async def test_page():
@@ -84,7 +88,7 @@ async def test_page():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
-    if session_id not in sessions: sessions[session_id] = []
+    if session_id not in sessions: sessions[session_id] =[]
     
     sessions[session_id].append({"role": "user", "content": request.message})
     
@@ -119,7 +123,7 @@ async def chat(request: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "openai/gpt-4o-mini", "messages": messages, "temperature": 0.3, "max_tokens": 400}
+                json={"model": "openai/gpt-5.2-pro", "messages": messages, "temperature": 0.3, "max_tokens": 400}
             )
             
             if response.status_code != 200:
