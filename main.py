@@ -126,7 +126,7 @@ async def chat(request: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "openai/gpt-5.2-pro", "messages": messages, "temperature": 0.3, "max_tokens": 400}
+                json={"model": "openai/gpt-5.4-pro", "messages": messages, "temperature": 0.3, "max_tokens": 400}
             )
             
             if response.status_code != 200:
