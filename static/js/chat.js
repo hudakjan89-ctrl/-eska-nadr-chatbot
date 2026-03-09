@@ -1,7 +1,7 @@
 // static/js/chat.js
 (function() {
   // Ak to bezi na rovnakej doméne, necháme prázdne. Ak na inej subdoméne, zadaj URL k tvojmu FastAPI serveru.
-  const BASE_URL = 'nadrz.eniq.eu'; 
+  const BASE_URL = 'https://nadrz.eniq.eu'; 
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
