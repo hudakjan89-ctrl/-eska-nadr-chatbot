@@ -113,7 +113,7 @@ async def chat(request: ChatRequest):
                     "X-Title": "Ceska Nadrz Bot"
                 },
                 json={
-                    "model": "openai/gpt-4o-mini", 
+                    "model": "openai/gpt-5-mini", 
                     "messages": messages,
                     "temperature": 0.3,
                     "max_tokens": 400
