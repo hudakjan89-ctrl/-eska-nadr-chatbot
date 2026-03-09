@@ -45,6 +45,8 @@ def remove_diacritics(text: str) -> str:
 # (Produkty musia byť hore, kategórie dole!)
 # ==========================================
 URL_MAP = {
+    # ---> PRIDANÝ BETA PRODUKT <---
+    "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10000", "set zahrada", "zahrada standard", "na zahradu", "zalevani", "zalevat"],
     # 1. NAJPRV ŠPECIFICKÉ PRODUKTY (Ak zákazník uvedie presný detail)
     "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/": ["1m3", "1 kubik", "mala nadrz"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/": ["mini sachta", "sachta mini", "mini sachtu"],
@@ -100,9 +102,10 @@ async def chat(request: ChatRequest):
         f"Jsi AI nákupní asistent a zákaznická podpora pro e-shop Česká nádrž.\n\n"
         f"ZDE JSOU TVÉ ZNALOSTI (Databáze firmy):\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
         "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. NÁKUPNÍ ASISTENT: Ptej se zákazníka na Účel, Objem a Podloží. Můžeš doporučit kategorie: 'Nádrže k obetonování', 'Šachty na vrt', 'Přečerpávací jímky', 'Čistírny odpadních vod'. Systém pak uživateli automaticky nabídne odkaz, takže ty jen doplň slovní doporučení.\n"
-        "2. FAQ: Odpovídej na dotazy k dopravě (zdarma nad určené produkty), platbě (nelze kartou u řidiče) a kontaktům.\n"
-        "3. EMAIL HANDOFF: Při velmi složitých dotazech si vyžádej email/telefon a případ předej techniku Petrovi Nováčkovi.\n\n"
+        "1. DEMO SCÉNÁŘ (NEJDŮLEŽITĚJŠÍ): Pokud zákazník hledá nádrž na dešťovou vodu, na zalévání zahrady, nebo neví co vybrat na zahradu, VŽDY mu jako první nadšeně doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš mu 2-3 hlavní parametry (objem 10000 l, záruka 2 roky, vnější průměr 2600 mm) a zeptej se ho, zda se na tento set chce podívat.\n"
+        "2. NÁKUPNÍ ASISTENT: U jiných dotazů se ptej na Účel, Objem a Podloží a doporuč kategorie jako obvykle.\n"
+        "3. FAQ: Odpovídej na dotazy k dopravě a platbě.\n"
+        "4. EMAIL HANDOFF: Při velmi složitých dotazech si vyžádej email/telefon.\n\n"
         "PRAVIDLA:\n"
         "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
         f"- DŮLEŽITÉ: {lang_instruction}\n"
