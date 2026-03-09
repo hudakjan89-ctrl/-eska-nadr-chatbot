@@ -40,23 +40,29 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-KEYWORDS = {
-    "doprava":["doprava", "dovoz", "rozvoz", "zadarmo", "zdarma", "dodavka", "ridic", "skladani"],
-    "kontakt":["kontakt", "telefon", "email", "adresa", "kde vas najdem", "kde vas najdu", "spojeni"],
-    "eshop":["eshop", "koupit", "objednat", "cena", "cenik", "produkty", "katalog"],
-    "poradce":["vyber", "jakou nadrz", "samonosn", "obetonovan", "dvouplast", "podlozi", "spodni voda"]
+# MAPOVANIE KĽÚČOVÝCH SLOV PRIAMO NA TVOJE URL ADRESY
+URL_MAP = {
+    # SEKCIE
+    "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
+    "https://www.ceskanadrz.cz/sachta-na-vrt-k-obetonovani/":["sachta na vrt", "sachtu na vrt", "sachty na vrt"],
+    "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/": ["precerpavaci", "precerpavack"],
+    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/":["cistirn", "cistick", "cov", "odpadnich vod"],
+    # SPECIFICKÉ PRODUKTY
+    "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/": ["1m3", "1 kubik", "mala nadrz"],
+    "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/": ["mini sachta", "sachta mini"],
+    "https://www.ceskanadrz.cz/automaticka-cisticka-odpadnich-vod-pro-2-5-osob-at6-plus/":["at6", "pro 2", "pro 5", "at6 plus"]
 }
 
 def detect_page_section(message: str) -> Optional[str]:
     msg_clean = remove_diacritics(message.lower())
-    for section, terms in KEYWORDS.items():
+    for url, terms in URL_MAP.items():
         if any(term in msg_clean for term in terms):
-            return section
+            return url
     return None
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Bot is running", "version": "1.0.beta"}
+    return {"status": "Česká nádrž Bot is running", "version": "1.1"}
 
 @app.get("/test", response_class=HTMLResponse)
 async def test_page():
@@ -78,9 +84,7 @@ async def test_page():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
-    
-    if session_id not in sessions:
-        sessions[session_id] = []
+    if session_id not in sessions: sessions[session_id] = []
     
     sessions[session_id].append({"role": "user", "content": request.message})
     
@@ -90,47 +94,46 @@ async def chat(request: ChatRequest):
     
     system_prompt = (
         f"Jsi AI nákupní asistent a zákaznická podpora pro e-shop Česká nádrž.\n\n"
-        f"ZDE JSOU TVÉ ZNALOSTI:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
+        f"ZDE JSOU TVÉ ZNALOSTI (Databáze firmy):\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
         "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. FAQ: Odpovídat na dotazy ohledně dopravy, platby a kvality.\n"
-        "2. NÁKUPNÍ ASISTENT: Ptej se zákazníka na Účel, Objem a Podloží (max 1 otázka naráz).\n"
-        "3. EMAIL HANDOFF: Při složitých dotazech si vyžádej email/telefon pro technika Petra.\n\n"
+        "1. NÁKUPNÍ ASISTENT: Ptej se zákazníka na Účel, Objem a Podloží. Můžeš doporučit kategorie: 'Nádrže k obetonování', 'Šachty na vrt', 'Přečerpávací jímky', 'Čistírny odpadních vod'. Systém pak uživateli automaticky nabídne odkaz, takže ty jen doplň slovní doporučení.\n"
+        "2. FAQ: Odpovídej na dotazy k dopravě (zdarma nad určené produkty), platbě (nelze kartou u řidiče) a kontaktům.\n"
+        "3. EMAIL HANDOFF: Při velmi složitých dotazech si vyžádej email/telefon a případ předej techniku Petrovi Nováčkovi.\n\n"
         "PRAVIDLA:\n"
         "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
-        f"- DŮLEŽITÉ: Zákazník si v menu vybral jazyk. {lang_instruction}\n"
+        f"- DŮLEŽITÉ: {lang_instruction}\n"
     )
     
     messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
+        if not OPENROUTER_API_KEY:
+            raise Exception("API Key is missing.")
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://www.ceskanadrz.cz",
+                    "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={
-                    "model": "openai/gpt-5-mini", 
-                    "messages": messages,
-                    "temperature": 0.3,
-                    "max_tokens": 400
-                }
+                json={"model": "openai/gpt-4o-mini", "messages": messages, "temperature": 0.3, "max_tokens": 400}
             )
+            
+            if response.status_code != 200:
+                print(f"OpenRouter Error: {response.text}")
+                raise Exception("OpenRouter API Error")
             
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
-            detected_section = detect_page_section(request.message)
+            detected_url = detect_page_section(request.message)
             
-            return ChatResponse(
-                response=assistant_message,
-                session_id=session_id,
-                page_section=detected_section
-            )
+            return ChatResponse(response=assistant_message, session_id=session_id, page_section=detected_url)
             
     except Exception as e:
+        print(f"Error in /chat: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
