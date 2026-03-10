@@ -41,16 +41,20 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# Všimni si: z 10m3 sme odstránili slová ako "zalevani", aby to nevyskočilo priskoro!
+# MAPOVANIE URL ADRIES (Pridaná sekcia O nás)
 URL_MAP = {
+    # 1. ŠPECIFICKÉ PRODUKTY
     "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10 kubikov", "deset kubiku", "desat kubikov", "10000", "set zahrada", "zahrada standard"],
     "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/":["1m3", "1 kubik", "mala nadrz"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/":["mini sachta", "sachta mini", "mini sachtu"],
     "https://www.ceskanadrz.cz/cisticka-odpadnich-vod-pro-2-5-osob-at6/":["at6", "pro 2", "pro 5", "pro 4", "at 6"],
+    
+    # 2. VŠEOBECNÉ KATEGÓRIE A STRÁNKY
     "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-k-obetonovani/":["sachta na vrt", "sachtu na vrt", "sachty na vrt"],
     "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/":["precerpavaci", "precerpavack"],
-    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/":["cistirn", "cistick", "cov", "odpadnich vod"]
+    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/":["cistirn", "cistick", "cov", "odpadnich vod"],
+    "https://www.ceskanadrz.cz/o-nas/":["o nas", "kdo jste", "informace o firme", "historie", "zkusenosti", "spolecnost", "ceska nadrz"]
 }
 
 def detect_page_section(message: str) -> Optional[str]:
@@ -62,7 +66,7 @@ def detect_page_section(message: str) -> Optional[str]:
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Bot is running", "version": "1.5"}
+    return {"status": "Česká nádrž Bot is running", "version": "1.7"}
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -76,14 +80,15 @@ async def chat(request: ChatRequest):
     elif request.language == "en": lang_instruction = "VŽDY odpovídej anglicky!"
     
     system_prompt = (
-        f"Jsi AI nákupní asistent pro e-shop Česká nádrž.\n\n"
+        f"Jsi zákaznický asistent pro e-shop Česká nádrž.\n\n"
         f"ZDE JSOU TVÉ ZNALOSTI:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
         "TVÉ HLAVNÍ ÚKOLY A SCÉNÁŘ:\n"
-        "1. KROK 1 (ZJIŠTĚNÍ POTŘEBY): Pokud zákazník hledá nádrž na zalévání trávníku nebo zahrady (a nenapsal objem), NEPOSÍLEJ mu hned konkrétní produkt. Zeptej se ho pouze: 'Skvělá volba, na zalévání zahrady máme výborné nádrže. Jak velkou nádrž (kolik kubíků) si zhruba představujete?'\n"
-        "2. KROK 2 (DOPORUČENÍ): Pokud zákazník odpoví, že chce objem okolo 10m3 (10 kubíků), nadšeně mu doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš mu parametry a zeptej se, zda se chce na tento produkt podívat v e-shopu.\n"
-        "3. KROK 3 (TECHNICKÝ DOTAZ -> FORMULÁŘ): Jakmile se zákazník zeptá na technický detail (např. 'jak to usadit', 'potřebuji poradit s instalací', 'spodní voda', 'můžete mi technicky poradit'), PŘIZNEJ, že jsi jen AI. Řekni PŘESNĚ toto: 'Na tohle vám už jako umělá inteligence bohužel nedokážu přesně odpovědět. S technickými detaily vám ale velmi rád poradí náš hlavní technik Petr Nováček. Vyplňte prosím tento krátký formulář a Petr se vám brzy ozve.' a NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
-        "4. BĚŽNÝ REŽIM: U jiných dotazů se chovej přirozeně, ptej se na Účel, Objem a Podloží a odpovídej na dopravu/platbu.\n\n"
+        "1. KROK 1 (DOPTAZOVÁNÍ NA ZAČÁTKU): Na začátku konverzace se aktivně ptej zákazníka na detaily (Účel, Objem, Podloží), abys zjistil, co potřebuje. Např. pokud hledá nádrž na zalévání zahrady a nenapsal objem, zeptej se ho: 'Skvělá volba, na zalévání zahrady máme výborné nádrže. Jak velkou nádrž (kolik kubíků) si zhruba představujete?'\n"
+        "2. KROK 2 (DOPORUČENÍ A KONEC VYPTÁVÁNÍ): Jakmile zákazník upřesní požadavek (např. 10m3), nadšeně doporuč produkt ('10m3 nádrž na vodu + set ZAHRADA STANDARD'). Vypiš parametry a zeptej se, zda se chce podívat. POZOR: Jakmile doporučíš konkrétní produkt, PŘESTAŇ se ho vyptávat na další parametry a pouze čekej na jeho reakci!\n"
+        "3. KROK 3 (TECHNICKÝ DOTAZ -> FORMULÁŘ): Jakmile se zákazník zeptá na technický detail (např. 'jak to usadit', 'potřebuji poradit s instalací', 'spodní voda', 'můžete mi technicky poradit'), IHNED ukonči prodej. Řekni PŘESNĚ toto: 'Tohle je už velmi specifický technický dotaz. S těmito detaily vám nejlépe poradí náš hlavní technik Petr Nováček. Vyplňte prosím tento krátký formulář a Petr se vám co nejdříve ozve.' a NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
+        "4. BĚŽNÝ REŽIM A INFORMACE O FIRMĚ: U dotazů na to, kdo jsme, odpovídej stručně z historie firmy (15 let zkušeností, výroba bez recyklátu). U jiných dotazů stručně odpovídej na dopravu, platbu atd.\n\n"
         "PRAVIDLA:\n"
+        "- NIKDY nezmiňuj, že jsi AI, bot nebo umělá inteligence. Vystupuj jako skutečný asistent e-shopu.\n"
         "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
         f"- {lang_instruction}\n"
     )
@@ -107,7 +112,7 @@ async def chat(request: ChatRequest):
             show_form = False
             msg_lower = assistant_message.lower()
             
-            # 100% poistka pre formulár
+            # Poistka pre formulár
             if "[SHOW_CONTACT_FORM]" in assistant_message or "formulář" in msg_lower or "petr" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
