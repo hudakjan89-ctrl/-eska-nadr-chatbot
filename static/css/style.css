@@ -197,3 +197,25 @@
 /* Odkazy v texte bota */
 .chat-link { color: #0284c7; text-decoration: underline; font-weight: 500; word-break: break-word; }
 .chat-link:hover { color: #0369a1; }
+
+/* ============== Contact Form (Vložený priamo v chate) ============== */
+.contact-form-container {
+  display: flex; flex-direction: column; gap: 8px; margin: 8px 0 16px 42px;
+  background: var(--bot-msg-bg); border: 1px solid var(--bot-msg-border);
+  padding: 14px; border-radius: 14px; animation: slideInPrompt 0.4s ease-out;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.cf-input {
+  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--input-border);
+  background: var(--input-bg); color: var(--text-primary); font-size: 13px; outline: none;
+  transition: border 0.2s;
+}
+.cf-input:focus { border-color: #005b9f; }
+.cf-submit-btn {
+  padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-top: 4px;
+  cursor: pointer; border: none; background: #005b9f; color: #ffffff; transition: 0.2s;
+}
+.cf-submit-btn:hover { background: #004a82; transform: translateY(-1px); }
+.cf-success {
+  font-size: 13px; font-weight: 600; color: #10b981; text-align: center; padding: 10px;
+}
