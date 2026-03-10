@@ -36,23 +36,16 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
     page_section: Optional[str] = None
+    show_contact_form: bool = False  # <--- NOVÝ PARAMETER PRE FORMULÁR
 
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# ==========================================
-# OPRAVENÉ MAPOVANIE URL ADRIES 
-# (Produkty musia byť hore, kategórie dole!)
-# ==========================================
 URL_MAP = {
-    # ---> PRIDANÝ BETA PRODUKT <---
-    "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10000", "set zahrada", "zahrada standard", "na zahradu", "zalevani", "zalevat"],
-    # 1. NAJPRV ŠPECIFICKÉ PRODUKTY (Ak zákazník uvedie presný detail)
-    "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/": ["1m3", "1 kubik", "mala nadrz"],
-    "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/": ["mini sachta", "sachta mini", "mini sachtu"],
+    "https://www.ceskanadrz.cz/set-10m3-nadrz-na-vodu-zahrada-standard/":["10m3", "10 kubiku", "10000", "set zahrada", "zahrada standard", "na zahradu", "zalevani", "zalevat"],
+    "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/":["1m3", "1 kubik", "mala nadrz"],
+    "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/":["mini sachta", "sachta mini", "mini sachtu"],
     "https://www.ceskanadrz.cz/cisticka-odpadnich-vod-pro-2-5-osob-at6/":["at6", "pro 2", "pro 5", "pro 4", "at 6"],
-    
-    # 2. AŽ POTOM VŠEOBECNÉ SEKCIE (Ak nezadal nič špecifické, pošleme ho do kategórie)
     "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-k-obetonovani/":["sachta na vrt", "sachtu na vrt", "sachty na vrt"],
     "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/":["precerpavaci", "precerpavack"],
@@ -68,24 +61,7 @@ def detect_page_section(message: str) -> Optional[str]:
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Bot is running", "version": "1.2"}
-
-@app.get("/test", response_class=HTMLResponse)
-async def test_page():
-    return """
-    <!DOCTYPE html>
-    <html lang="cs">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Česká nádrž Bot Test</title>
-        <style>body { margin: 0; padding: 0; height: 100vh; background: #e5e7eb; }</style>
-    </head>
-    <body>
-        <script src="/static/js/chat.js"></script>
-    </body>
-    </html>
-    """
+    return {"status": "Česká nádrž Bot is running", "version": "1.3"}
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -99,46 +75,49 @@ async def chat(request: ChatRequest):
     elif request.language == "en": lang_instruction = "VŽDY odpovídej anglicky!"
     
     system_prompt = (
-        f"Jsi AI nákupní asistent a zákaznická podpora pro e-shop Česká nádrž.\n\n"
-        f"ZDE JSOU TVÉ ZNALOSTI (Databáze firmy):\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
+        f"Jsi AI nákupní asistent pro e-shop Česká nádrž.\n\n"
+        f"ZDE JSOU TVÉ ZNALOSTI:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
         "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. DEMO SCÉNÁŘ 1 (PRODEJ): Pokud zákazník hledá nádrž na dešťovou vodu, na zalévání zahrady, nebo neví co vybrat na zahradu, VŽDY mu jako první nadšeně doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš mu 2-3 hlavní parametry (objem 10000 l, záruka 2 roky, vnější průměr 2600 mm) a zeptej se ho, zda se na tento set chce podívat.\n"
-        "2. DEMO SCÉNÁŘ 2 (EMAIL HANDOFF): Pokud se zákazník následně zeptá 'můžete mi o tom říct více?', 'můžete mi nějak poradit?', nebo chce detaily k instalaci, IHNED ukonči prodejní fázi. Řekni, že s detailním technickým poradenstvím a specifiky mu nejlépe pomůže přímo majitel a hlavní technik Petr Nováček. VŽDY mu napiš, ať se ozve na e-mail info@ceskanadrz.cz nebo zavolá na 723 045 274.\n"
-        "3. NÁKUPNÍ ASISTENT A FAQ: U jiných dotazů se ptej na Účel, Objem a Podloží a odpovídej na dopravu/platbu.\n\n"
+        "1. DEMO SCÉNÁŘ 1 (PRODEJ): Pokud zákazník hledá nádrž na zalévání zahrady, VŽDY mu doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš parametry a zeptej se, zda se chce podívat.\n"
+        "2. DEMO SCÉNÁŘ 2 (FORMULÁŘ): Pokud se zákazník zeptá 'můžete mi o tom říct více?', 'můžete mi nějak poradit?', nebo chce technické detaily instalace, IHNED ukonči prodej. Řekni, že s tímto nejlépe pomůže majitel Petr Nováček a VYZVI ZÁKAZNÍKA, aby vyplnil formulář níže. NA ÚPLNÝ KONEC ZPRÁVY VŽDY PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
+        "3. POKRAČOVÁNÍ CHATU: Pokud ti systém pošle zprávu, že zákazník odeslal kontaktní údaje, poděkuj mu, řekni, že to Petrovi předáváš a zeptej se, zda mu můžeš pomoci s něčím dalším (a dál se s ním normálně bav).\n"
+        "4. BĚŽNÝ REŽIM: U jiných dotazů se ptej na Účel, Objem a Podloží a odpovídej na dopravu/platbu.\n\n"
         "PRAVIDLA:\n"
         "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
-        f"- DŮLEŽITÉ: {lang_instruction}\n"
+        f"- {lang_instruction}\n"
     )
     
     messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
-        if not OPENROUTER_API_KEY:
-            raise Exception("API Key is missing.")
-
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://nadrz.eniq.eu",
-                    "X-Title": "Ceska Nadrz Bot"
+                    "Content-Type": "application/json"
                 },
-                json={"model": "openai/o4-mini", "messages": messages, "temperature": 0.3, "max_tokens": 400}
+                json={"model": "openai/gpt-4o-mini", "messages": messages, "temperature": 0.3, "max_tokens": 400}
             )
-            
-            if response.status_code != 200:
-                print(f"OpenRouter Error: {response.text}")
-                raise Exception("OpenRouter API Error")
             
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
+            # KONTROLA FORMULÁŘE
+            show_form = False
+            if "[SHOW_CONTACT_FORM]" in assistant_message:
+                show_form = True
+                assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
+            
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
             detected_url = detect_page_section(request.message)
             
-            return ChatResponse(response=assistant_message, session_id=session_id, page_section=detected_url)
+            return ChatResponse(
+                response=assistant_message, 
+                session_id=session_id, 
+                page_section=detected_url,
+                show_contact_form=show_form
+            )
             
     except Exception as e:
         print(f"Error in /chat: {str(e)}")
