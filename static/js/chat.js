@@ -2,7 +2,6 @@
 (function() {
   const BASE_URL = 'https://nadrz.eniq.eu'; 
 
-  // 1. Vloženie fontov a CSS
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
   fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
@@ -13,7 +12,6 @@
   cssLink.href = `${BASE_URL}/static/css/style.css`;
   document.head.appendChild(cssLink);
 
-  // 2. Vloženie HTML widgetu
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
       <div class="eniq-launcher-avatar">
@@ -78,7 +76,6 @@
   `;
   document.body.insertAdjacentHTML('beforeend', chatHTML);
 
-  // 3. LOGIKA A PREKLADY
   let sessionId = localStorage.getItem("session_id") || null;
   let selectedLang = localStorage.getItem("eniq_lang") || "cs";
   let isExpanded = localStorage.getItem("eniq_expanded") === "true";
@@ -91,9 +88,9 @@
   let typingInterval = null;
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete přejít na produkt/kategorii?", btnYes: "Ano, přejít", btnNo: "Ne, díky" },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete prejsť na produkt/kategóriu?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka" },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a matching link. Would you like to check it out?", btnYes: "Yes, open", btnNo: "No, thanks" }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete přejít na produkt/kategorii?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno", cfLname: "Příjmení", cfEmail: "E-mail", cfBtn: "Odeslat kontakt", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím jméno a e-mail." },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete prejsť na produkt/kategóriu?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno", cfLname: "Priezvisko", cfEmail: "E-mail", cfBtn: "Odoslať kontakt", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím meno a e-mail." },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a matching link. Would you like to check it out?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "First Name", cfLname: "Last Name", cfEmail: "E-mail", cfBtn: "Submit contact", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out your name and email." }
   };
 
   const QUICK_ACTIONS = {
@@ -152,7 +149,6 @@
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
   }
 
-  // Tlačidlá pre presmerovanie
   function showPageLinkButtons(pageUrl) {
     const row = document.createElement("div"); row.className = "page-link-prompt";
     const text = document.createElement("div"); text.className = "page-link-text"; text.textContent = UI_TEXT[selectedLang].showOnPage;
@@ -161,6 +157,42 @@
     const btnNo = document.createElement("button"); btnNo.className = "page-link-btn page-link-btn-no"; btnNo.textContent = UI_TEXT[selectedLang].btnNo;
     buttons.appendChild(btnYes); buttons.appendChild(btnNo); row.appendChild(text); row.appendChild(buttons);
     chatBox.appendChild(row); scrollToBottom();
+  }
+
+  // --- NOVÁ FUNKCIA: Zobrazenie formulára v chate ---
+  function renderContactForm() {
+    const row = document.createElement("div"); row.className = "contact-form-container";
+    row.innerHTML = `
+      <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
+      <input type="text" class="cf-input cf-lname" placeholder="${UI_TEXT[selectedLang].cfLname}">
+      <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
+      <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
+    `;
+    chatBox.appendChild(row); scrollToBottom();
+
+    const submitBtn = row.querySelector('.cf-submit-btn');
+    submitBtn.addEventListener('click', () => {
+      const fname = row.querySelector('.cf-fname').value.trim();
+      const lname = row.querySelector('.cf-lname').value.trim();
+      const email = row.querySelector('.cf-email').value.trim();
+
+      if (!fname || !email) {
+        alert(UI_TEXT[selectedLang].cfErr);
+        return;
+      }
+
+      // 1. Zmeníme vizuál formuláru na úspešné odoslanie
+      row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
+
+      // 2. Pošleme tajnú správu botovi do pozadia, že sme vyplnili formulár
+      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname} ${lname}, Email: ${email}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      
+      // Do chatu pre užívateľa pridáme vizuálnu bublinu
+      addMessage(`[Odeslán kontakt: ${fname} ${lname}, ${email}]`, "user", false);
+      
+      // Spustíme normálnu komunikáciu s backendom pomocou tichého prenosu
+      sendDirectMessageToAPI(hiddenMessage);
+    });
   }
 
   function addMessage(text, type, showActions = false) {
@@ -196,15 +228,13 @@
     if (searchingEl) { searchingEl.remove(); searchingEl = null; }
   }
 
-  // --- EVENT LISTENERY ---
   document.getElementById("chatLauncher").addEventListener("click", () => {
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
     if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
   });
 
   document.getElementById("closeBtn").addEventListener("click", () => { 
-    panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); 
-    document.getElementById("settingsMenu").classList.remove('active'); 
+    panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); document.getElementById("settingsMenu").classList.remove('active'); 
   });
   
   document.getElementById("settingsBtn").addEventListener("click", () => document.getElementById("settingsMenu").classList.toggle('active'));
@@ -216,12 +246,10 @@
     chatBox.innerHTML = ""; isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true);
   });
 
-  // Reakcia na kliknutie do chatu (Rýchle akcie alebo Odkazy URL)
   chatBox.addEventListener("click", (e) => {
     const actionBtn = e.target.closest(".quick-action-btn");
     const linkBtn = e.target.closest(".page-link-btn");
     
-    // Kliknutie na predvolené tlačidlo (Doprava, Kontakt...)
     if (actionBtn) {
       isFirstMessage = false; addMessage(actionBtn.textContent.trim(), "user", false);
       const row = document.createElement("div"); row.className = `message bot`;
@@ -230,27 +258,19 @@
       streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]);
     }
     
-    // Kliknutie na Presmerovanie (Áno/Nie)
     if (linkBtn) {
-      if (linkBtn.classList.contains("page-link-btn-yes")) { 
-          // Otvorí produkt na novej karte, taktiež pre istotu v aktuálnom ak by blokoval popup
-          window.open(linkBtn.dataset.url, '_blank') || (window.location.href = linkBtn.dataset.url);
-      }
-      linkBtn.closest(".page-link-prompt").remove(); // Skryje ponuku po kliknutí
+      if (linkBtn.classList.contains("page-link-btn-yes")) { window.open(linkBtn.dataset.url, '_blank') || (window.location.href = linkBtn.dataset.url); }
+      linkBtn.closest(".page-link-prompt").remove(); 
     }
   });
 
-  async function sendMessage() {
-    const userText = input.value.trim(); if (!userText) return;
-    sendBtn.disabled = true; input.value = ""; isFirstMessage = false;
-    
-    addMessage(userText, "user", false); 
+  // ODDELENÁ FUNKCIA NA KOMUNIKÁCIU SO SERVEROM
+  async function sendDirectMessageToAPI(messageText) {
     showSearching();
-    
     try {
       const resp = await fetch(`${BASE_URL}/chat`, { 
         method: "POST", headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ message: userText, session_id: sessionId, language: selectedLang }) 
+        body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }) 
       });
       const data = await resp.json(); 
       sessionId = data.session_id; localStorage.setItem("session_id", sessionId);
@@ -262,28 +282,30 @@
       
       await streamText(bubble, data.response);
       
-      // Zobrazenie animovaných tlačidiel na presmerovanie na URL
-      if (data.page_section) {
-        showPageLinkButtons(data.page_section);
-      }
+      if (data.page_section) showPageLinkButtons(data.page_section);
+      if (data.show_contact_form) renderContactForm();
+      
     } catch (err) {
-      hideSearching();
-      addMessage("Omlouváme se, nastala chyba serveru.", "bot", false);
-    } finally { 
-      sendBtn.disabled = false; input.focus(); 
+      hideSearching(); addMessage("Omlouváme se, nastala chyba serveru.", "bot", false);
     }
+  }
+
+  async function sendMessage() {
+    const userText = input.value.trim(); if (!userText) return;
+    sendBtn.disabled = true; input.value = ""; isFirstMessage = false;
+    
+    addMessage(userText, "user", false); 
+    await sendDirectMessageToAPI(userText);
+    
+    sendBtn.disabled = false; input.focus(); 
   }
 
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
-  // Inicializácia widgetu po načítaní
   updateUI(); setExpanded(isExpanded); setTheme(isDark);
   if (isChatOpen) { 
     panel.classList.add('open'); 
-    if (chatBox.children.length === 0) { 
-      isFirstMessage = true; 
-      addMessage(UI_TEXT[selectedLang].welcome, "bot", true); 
-    } 
+    if (chatBox.children.length === 0) { isFirstMessage = true; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); } 
   }
 })();
