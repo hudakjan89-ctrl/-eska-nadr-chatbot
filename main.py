@@ -41,15 +41,16 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
+# Všimni si: z 10m3 sme odstránili slová ako "zalevani", aby to nevyskočilo priskoro!
 URL_MAP = {
-    "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10000", "set zahrada", "zahrada standard", "na zahradu", "zalevani", "zalevat"],
+    "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10 kubikov", "deset kubiku", "desat kubikov", "10000", "set zahrada", "zahrada standard"],
     "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/":["1m3", "1 kubik", "mala nadrz"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-mini-k-obetonovani-2/":["mini sachta", "sachta mini", "mini sachtu"],
     "https://www.ceskanadrz.cz/cisticka-odpadnich-vod-pro-2-5-osob-at6/":["at6", "pro 2", "pro 5", "pro 4", "at 6"],
     "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
     "https://www.ceskanadrz.cz/sachta-na-vrt-k-obetonovani/":["sachta na vrt", "sachtu na vrt", "sachty na vrt"],
     "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/":["precerpavaci", "precerpavack"],
-    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/": ["cistirn", "cistick", "cov", "odpadnich vod"]
+    "https://www.ceskanadrz.cz/cistirny-odpadnich-vod/":["cistirn", "cistick", "cov", "odpadnich vod"]
 }
 
 def detect_page_section(message: str) -> Optional[str]:
@@ -61,7 +62,7 @@ def detect_page_section(message: str) -> Optional[str]:
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Bot is running", "version": "1.4"}
+    return {"status": "Česká nádrž Bot is running", "version": "1.5"}
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -77,11 +78,11 @@ async def chat(request: ChatRequest):
     system_prompt = (
         f"Jsi AI nákupní asistent pro e-shop Česká nádrž.\n\n"
         f"ZDE JSOU TVÉ ZNALOSTI:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
-        "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. DEMO SCÉNÁŘ 1 (PRODEJ): Pokud zákazník hledá nádrž na zalévání zahrady, VŽDY mu doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš parametry a zeptej se, zda se chce podívat.\n"
-        "2. DEMO SCÉNÁŘ 2 (100% FORMULÁŘ): Jakmile má zákazník technický dotaz (např. 'můžete mi poradit', 'říct více', 'jak to nainstalovat', 'usazení'), IHNED ukonči prodej. Řekni PŘESNĚ toto: 'Tohle je specifičtější dotaz, se kterým vám nejlépe poradí náš majitel a technik Petr Nováček. Vyplňte prosím tento krátký formulář a Petr se vám ozve.' a NA ÚPLNÝ KONEC ZPRÁVY PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
-        "3. POKRAČOVÁNÍ CHATU: Pokud ti systém pošle zprávu, že zákazník odeslal kontaktní údaje, poděkuj mu, řekni, že to Petrovi předáváš a zeptej se, zda mu můžeš pomoci s něčím dalším.\n"
-        "4. BĚŽNÝ REŽIM: U jiných dotazů se ptej na Účel, Objem a Podloží a odpovídej na dopravu/platbu.\n\n"
+        "TVÉ HLAVNÍ ÚKOLY A SCÉNÁŘ:\n"
+        "1. KROK 1 (ZJIŠTĚNÍ POTŘEBY): Pokud zákazník hledá nádrž na zalévání trávníku nebo zahrady (a nenapsal objem), NEPOSÍLEJ mu hned konkrétní produkt. Zeptej se ho pouze: 'Skvělá volba, na zalévání zahrady máme výborné nádrže. Jak velkou nádrž (kolik kubíků) si zhruba představujete?'\n"
+        "2. KROK 2 (DOPORUČENÍ): Pokud zákazník odpoví, že chce objem okolo 10m3 (10 kubíků), nadšeně mu doporuč '10m3 nádrž na vodu + set ZAHRADA STANDARD'. Vypiš mu parametry a zeptej se, zda se chce na tento produkt podívat v e-shopu.\n"
+        "3. KROK 3 (TECHNICKÝ DOTAZ -> FORMULÁŘ): Jakmile se zákazník zeptá na technický detail (např. 'jak to usadit', 'potřebuji poradit s instalací', 'spodní voda', 'můžete mi technicky poradit'), PŘIZNEJ, že jsi jen AI. Řekni PŘESNĚ toto: 'Na tohle vám už jako umělá inteligence bohužel nedokážu přesně odpovědět. S technickými detaily vám ale velmi rád poradí náš hlavní technik Petr Nováček. Vyplňte prosím tento krátký formulář a Petr se vám brzy ozve.' a NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
+        "4. BĚŽNÝ REŽIM: U jiných dotazů se chovej přirozeně, ptej se na Účel, Objem a Podloží a odpovídej na dopravu/platbu.\n\n"
         "PRAVIDLA:\n"
         "- NIKDY nepoužívej hvězdičky (**) ani formátování.\n"
         f"- {lang_instruction}\n"
@@ -97,18 +98,16 @@ async def chat(request: ChatRequest):
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json"
                 },
-                # Temperature znížená na 0.2 = Bot prestane byť kreatívny a presne dodrží inštrukciu
                 json={"model": "openai/gpt-4o-mini", "messages": messages, "temperature": 0.2, "max_tokens": 400}
             )
             
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
-            # --- 100% BEZPEČNOSTNÁ POISTKA PRE FORMULÁR ---
             show_form = False
             msg_lower = assistant_message.lower()
             
-            # Ak bot pridal tag, ALEBO spomenul formulár, ALEBO spomenul Petra = VŽDY ukážeme formulár!
+            # 100% poistka pre formulár
             if "[SHOW_CONTACT_FORM]" in assistant_message or "formulář" in msg_lower or "petr" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
