@@ -15,7 +15,7 @@
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
       <div class="eniq-launcher-avatar">
-        <svg fill="#ffffff" viewBox="0 0 24 24" width="32" height="32"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg>
+        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" />
       </div>
     </div>
 
@@ -23,7 +23,7 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-             <svg fill="#005b9f" viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg>
+             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" />
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Česká nádrž AI</div>
@@ -159,7 +159,6 @@
     chatBox.appendChild(row); scrollToBottom();
   }
 
-  // --- NOVÁ FUNKCIA: Zobrazenie formulára v chate ---
   function renderContactForm() {
     const row = document.createElement("div"); row.className = "contact-form-container";
     row.innerHTML = `
@@ -181,16 +180,10 @@
         return;
       }
 
-      // 1. Zmeníme vizuál formuláru na úspešné odoslanie
       row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
-
-      // 2. Pošleme tajnú správu botovi do pozadia, že sme vyplnili formulár
       const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname} ${lname}, Email: ${email}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
-      // Do chatu pre užívateľa pridáme vizuálnu bublinu
       addMessage(`[Odeslán kontakt: ${fname} ${lname}, ${email}]`, "user", false);
-      
-      // Spustíme normálnu komunikáciu s backendom pomocou tichého prenosu
       sendDirectMessageToAPI(hiddenMessage);
     });
   }
@@ -198,7 +191,7 @@
   function addMessage(text, type, showActions = false) {
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
-      row.innerHTML = `<div class="message-avatar"><svg fill="#ffffff" viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); chatBox.appendChild(row);
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
@@ -217,7 +210,7 @@
 
   function showSearching() {
     const row = document.createElement("div"); row.className = "searching-row";
-    row.innerHTML = `<div class="message-avatar"><svg fill="#ffffff" viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
+    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottom();
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
     typingInterval = setInterval(() => { if (index < text.length) { textEl.textContent += text[index++]; scrollToBottom(); } else clearInterval(typingInterval); }, 80);
@@ -253,7 +246,7 @@
     if (actionBtn) {
       isFirstMessage = false; addMessage(actionBtn.textContent.trim(), "user", false);
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><svg fill="#ffffff" viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]);
     }
@@ -264,7 +257,6 @@
     }
   });
 
-  // ODDELENÁ FUNKCIA NA KOMUNIKÁCIU SO SERVEROM
   async function sendDirectMessageToAPI(messageText) {
     showSearching();
     try {
@@ -277,7 +269,7 @@
       hideSearching();
       
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><svg fill="#ffffff" viewBox="0 0 24 24" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       
       await streamText(bubble, data.response);
