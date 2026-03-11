@@ -137,7 +137,7 @@ async def chat(request: ChatRequest):
                     "Content-Type": "application/json"
                 },
                 # Používame excelentný Anthropic Claude 3.5 Sonnet
-                json={"model": "anthropic/claude-3.5-sonnet", "messages": messages, "temperature": 0.2, "max_tokens": 500}
+                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 500}
             )
             
             data = response.json()
