@@ -15,7 +15,7 @@
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
       <div class="eniq-launcher-avatar">
-        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" />
+        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" onerror="this.style.display='none'">
       </div>
     </div>
 
@@ -23,7 +23,7 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" />
+             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Česká nádrž AI</div>
@@ -54,7 +54,8 @@
             <select class="lang-select" id="langSelect">
                 <option value="cs">🇨🇿 Čeština</option>
                 <option value="sk">🇸🇰 Slovenčina</option>
-                <option value="en">🇺🇸 English</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="uk">🇺🇦 Українська</option>
             </select>
           </div>
         </div>
@@ -88,21 +89,24 @@
   let typingInterval = null;
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete přejít na produkt/kategorii?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno", cfLname: "Příjmení", cfEmail: "E-mail", cfBtn: "Odeslat kontakt", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím jméno a e-mail." },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete prejsť na produkt/kategóriu?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno", cfLname: "Priezvisko", cfEmail: "E-mail", cfBtn: "Odoslať kontakt", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím meno a e-mail." },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a matching link. Would you like to check it out?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "First Name", cfLname: "Last Name", cfEmail: "E-mail", cfBtn: "Submit contact", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out your name and email." }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete přejít na produkt/sekci?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno", cfLname: "Příjmení", cfEmail: "E-mail", cfBtn: "Odeslat kontakt", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím jméno a e-mail." },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete prejsť na produkt/sekciu?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno", cfLname: "Priezvisko", cfEmail: "E-mail", cfBtn: "Odoslať kontakt", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím meno a e-mail." },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a matching link. Would you like to check it out?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "First Name", cfLname: "Last Name", cfEmail: "E-mail", cfBtn: "Submit contact", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out your name and email." },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте перейти до товару/розділу?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Ім'я", cfLname: "Прізвище", cfEmail: "E-mail", cfBtn: "Надіслати контакт", cfSuccess: "✔ Дані надіслано. Дякуємо!", cfErr: "Будь ласка, введіть ім'я та e-mail." }
   };
 
   const QUICK_ACTIONS = {
     cs:[ { key: "guide", label: "Pomoc s výběrem" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
     sk:[ { key: "guide", label: "Pomoc s výberom" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
-    en:[ { key: "guide", label: "Help me choose" }, { key: "shipping", label: "Shipping & Payment" }, { key: "contact", label: "Contact" } ]
+    en:[ { key: "guide", label: "Help me choose" }, { key: "shipping", label: "Shipping & Payment" }, { key: "contact", label: "Contact" } ],
+    uk:[ { key: "guide", label: "Допомога у виборі" }, { key: "shipping", label: "Доставка та оплата" }, { key: "contact", label: "Контакти" } ]
   };
 
   const INSTANT_ANSWERS = {
     cs: { guide: "Rád pomohu! Na co budete nádrž primárně potřebovat? (Dešťovka, jímka, septik?)", shipping: "Dopravu velkých nádrží máme po ČR ZDARMA! Platí se hotově u řidiče nebo převodem.", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 723 045 274." },
     sk: { guide: "Rád pomôžem! Na čo budete nádrž primárne potrebovať? (Dažďová voda, žumpa, septik?)", shipping: "Dopravu veľkých nádrží máme po ČR ZDARMA! Platí sa v hotovosti u vodiča alebo prevodom.", contact: "Napíšte na obchod@ceskanadrz.cz alebo zavolajte na 723 045 274." },
-    en: { guide: "I'd be happy to help! What will you use the tank for primarily?", shipping: "We offer FREE shipping for large tanks within the CZ! Payment is via cash on delivery or bank transfer.", contact: "Email us at obchod@ceskanadrz.cz or call 723 045 274." }
+    en: { guide: "I'd be happy to help! What will you use the tank for primarily?", shipping: "We offer FREE shipping for large tanks within the CZ! Payment is via cash on delivery or bank transfer.", contact: "Email us at obchod@ceskanadrz.cz or call 723 045 274." },
+    uk: { guide: "З радістю допоможу! Для чого вам потрібен резервуар? (Дощова вода, вигрібна яма, септик?)", shipping: "Доставка великих резервуарів по Чехії БЕЗКОШТОВНА! Оплата готівкою водієві або переказом.", contact: "Напишіть на obchod@ceskanadrz.cz або зателефонуйте 723 045 274." }
   };
 
   const panel = document.getElementById("chatPanel");
@@ -175,10 +179,7 @@
       const lname = row.querySelector('.cf-lname').value.trim();
       const email = row.querySelector('.cf-email').value.trim();
 
-      if (!fname || !email) {
-        alert(UI_TEXT[selectedLang].cfErr);
-        return;
-      }
+      if (!fname || !email) { alert(UI_TEXT[selectedLang].cfErr); return; }
 
       row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
       const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname} ${lname}, Email: ${email}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
