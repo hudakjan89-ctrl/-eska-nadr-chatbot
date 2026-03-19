@@ -163,28 +163,29 @@
     chatBox.appendChild(row); scrollToBottom();
   }
 
-  function renderContactForm() {
+   function renderContactForm() {
     const row = document.createElement("div"); row.className = "contact-form-container";
+    // Meno, Email, Telefón (presne podľa PDF dokumentu!)
     row.innerHTML = `
-      <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
-      <input type="text" class="cf-input cf-lname" placeholder="${UI_TEXT[selectedLang].cfLname}">
-      <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
-      <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
+      <input type="text" class="cf-input cf-fname" placeholder="Jméno a Příjmení / Meno">
+      <input type="email" class="cf-input cf-email" placeholder="E-mail">
+      <input type="tel" class="cf-input cf-phone" placeholder="Telefonní číslo">
+      <button class="cf-submit-btn">Odeslat / Submit</button>
     `;
     chatBox.appendChild(row); scrollToBottom();
 
     const submitBtn = row.querySelector('.cf-submit-btn');
     submitBtn.addEventListener('click', () => {
       const fname = row.querySelector('.cf-fname').value.trim();
-      const lname = row.querySelector('.cf-lname').value.trim();
       const email = row.querySelector('.cf-email').value.trim();
+      const phone = row.querySelector('.cf-phone').value.trim();
 
-      if (!fname || !email) { alert(UI_TEXT[selectedLang].cfErr); return; }
+      if (!fname || !email || !phone) { alert("Vyplňte prosím všechna pole (Jméno, Email, Telefon)."); return; }
 
-      row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
-      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname} ${lname}, Email: ${email}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      row.innerHTML = `<div class="cf-success">✔ Údaje odeslány. Děkujeme!</div>`;
+      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname}, Email: ${email}, Telefon: ${phone}). Poděkuj mu, řekni že to předáváš specialistovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
-      addMessage(`[Odeslán kontakt: ${fname} ${lname}, ${email}]`, "user", false);
+      addMessage(`[Odeslán kontakt: ${fname}, ${email}, ${phone}]`, "user", false);
       sendDirectMessageToAPI(hiddenMessage);
     });
   }
