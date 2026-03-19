@@ -10,8 +10,20 @@ model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 client = QdrantClient(path="./qdrant_db")
 COLLECTION_NAME = "ceskanadrz_products"
 
+# Bezpečná funkcia pre kontrolu existencie kolekcie (funguje vo všetkých verziách)
+def collection_exists():
+    try:
+        collections_response = client.get_collections()
+        for collection in collections_response.collections:
+            if collection.name == COLLECTION_NAME:
+                return True
+        return False
+    except Exception:
+        return False
+
 def init_db():
-    if not client.collection_exists(COLLECTION_NAME):
+    if not collection_exists():
+        print(f"Vytváram novú databázu: {COLLECTION_NAME}")
         client.create_collection(
             collection_name=COLLECTION_NAME,
             vectors_config=VectorParams(size=384, distance=Distance.COSINE)
@@ -26,7 +38,7 @@ def upsert_products(products):
         
         vector = model.encode(text_to_embed).tolist()
         points.append(PointStruct(
-            id=prod['id'],
+            id=prod['id'],  # Musí to byť validné UUID
             vector=vector,
             payload=prod
         ))
@@ -37,7 +49,7 @@ def upsert_products(products):
 
 def search_products(query: str, top_k=7):
     # Vyhľadá 7 najlepších produktov
-    if not client.collection_exists(COLLECTION_NAME): 
+    if not collection_exists(): 
         return[]
     
     query_vector = model.encode(query).tolist()
