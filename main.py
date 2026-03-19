@@ -61,7 +61,7 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Qdrant Bot is running", "version": "2.0"}
+    return {"status": "Česká nádrž Qdrant Bot is running", "version": "2.1"}
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -72,9 +72,9 @@ async def chat(request: ChatRequest):
     
     # RAG - Získame 7 najlepších produktov z Qdrantu pre aktuálnu otázku
     found_products = search_products(request.message)
-    products_context = "NAŠEL JSEM TYTO PRODUKTY V DATABÁZI (Z nich doporuč to nejlepší):\n"
+    products_context = "NAŠEL JSEM TYTO PRODUKTY V DATABÁZI (Z nich doporuč to nejlepší a nejrelevantnější):\n"
     for p in found_products:
-        products_context += f"- Název: {p['name']} | Cena: {p['price']} Kč | Odkaz: {p['url']} | Kategorie: {p['category']}\n"
+        products_context += f"- Název: {p['name']} | Cena: {p['price']} | Odkaz: {p['url']} | Kategorie: {p['category']}\n"
     if not found_products:
         products_context = "V databázi nebyly nalezeny žádné přesné produkty pro tento dotaz."
 
@@ -83,7 +83,6 @@ async def chat(request: ChatRequest):
     elif request.language == "en": lang_instruction = "You MUST answer strictly in ENGLISH!"
     elif request.language == "uk": lang_instruction = "Ти ПОВИНЕН відповідати строго УКРАЇНСЬКОЮ мовою!"
 
-    # PROMPT CACHING - Aby OpenRouter šetril tokeny, statická časť (Knowledge) musí byť prvá!
     system_prompt = (
         f"Jsi technický poradce a asistent e-shopu Česká nádrž.\n\n"
         f"STATICKÁ FIREMNÍ DATABÁZE:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
@@ -92,9 +91,9 @@ async def chat(request: ChatRequest):
         f"---------------------\n"
         "TVÉ HLAVNÍ ÚKOLY:\n"
         "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti účel, objem a podloží. Pokud nevíš objem, ptej se!\n"
-        "2. KROK 2 (DOPORUČENÍ): Vyber 1-2 nejvhodnější produkty ze seznamu 'NAŠEL JSEM TYTO PRODUKTY'. Vypiš parametry a VŽDY ZAŘAĎ PŘESNÝ ODKAZ (URL) na produkt do své odpovědi, aby na něj mohl zákazník kliknout.\n"
-        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz na míru (usazení, jíl, atypické řešení), IHNED ukonči prodej. Napiš: 'Tohle je už velmi specifický technický dotaz. Nejlépe vám poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefon a Petr se vám ozve.' a NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
-        "4. KROK 4 (NENALEZENO): Pokud seznam produktů výše nedává smysl pro zákazníkův dotaz, nevymýšlej si! Omluv se, že v databázi tento konkrétní typ nevidíš a odkaž ho na příslušnou kategorii.\n\n"
+        "2. KROK 2 (DOPORUČENÍ): Vyber 1-2 nejvhodnější produkty ze seznamu 'NAŠEL JSEM TYTO PRODUKTY'. Vypiš parametry a VŽDY ZAŘAĎ PŘESNÝ ODKAZ (URL) na produkt do své odpovědi, aby na něj mohl zákazník kliknout. Ujisti se, že produkt dává smysl k dotazu.\n"
+        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz na míru (usazení, jíl, atypické řešení), IHNED ukonči prodej. Napiš: 'Tohle je už velmi specifický technický dotaz. Nejlépe vám poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefon a Petr se vám ozve.' a NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
+        "4. KROK 4 (NENALEZENO): Pokud seznam produktů výše nedává vůbec smysl pro zákazníkův dotaz, nevymýšlej si! Omluv se, že v databázi tento konkrétní typ nevidíš a zkus ho odkázat na hlavní kategorie webu.\n\n"
         "PRAVIDLA:\n"
         "- Vystupuj jako skutečný asistent e-shopu (odborný, přátelský).\n"
         "- Nepoužívej hvězdičky (**) k formátování.\n"
@@ -104,30 +103,48 @@ async def chat(request: ChatRequest):
     messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
+        # Pridaná ochrana pred chýbajúcim kľúčom
+        if not OPENROUTER_API_KEY:
+            print("CRITICAL: OPENROUTER_API_KEY is missing!")
+            raise Exception("API Key is missing.")
+
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://nadrz.eniq.eu",
+                    "X-Title": "Ceska Nadrz Bot"
                 },
-                # Claude 3.5 Sonnet
                 json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 500}
             )
             
+            # --- TOTO NÁM ODHALÍ PRESNÚ CHYBU OD OPENROUTERU ---
+            if response.status_code != 200:
+                error_msg = f"OpenRouter Error {response.status_code}: {response.text}"
+                print("====================================")
+                print(error_msg)
+                print("====================================")
+                raise Exception(error_msg)
+            
             data = response.json()
+            
+            # Poistka, ak by OpenRouter aj napriek kódu 200 neposlal 'choices'
+            if "choices" not in data:
+                print(f"Unexpected JSON from OpenRouter: {data}")
+                raise Exception("Missing 'choices' in response.")
+
             assistant_message = data["choices"][0]["message"]["content"]
             
             show_form = False
             msg_lower = assistant_message.lower()
-            if "[SHOW_CONTACT_FORM]" in assistant_message or "formulář" in msg_lower or "petr" in msg_lower or "zanechte mi" in msg_lower:
+            if "[SHOW_CONTACT_FORM]" in assistant_message or "formulář" in msg_lower or "petr" in msg_lower or "zanechte mi" in msg_lower or "form" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
             
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
             
-            # Kedze bot už vkladá URL priamo do textu, "page_section" môžeme zrušiť,
-            # ale ponechávame ho prázdne, aby nepadol Frontend.
             return ChatResponse(
                 response=assistant_message, 
                 session_id=session_id, 
