@@ -1,17 +1,18 @@
 FROM python:3.11-slim
 
-# Nastavenie pracovného adresára
 WORKDIR /app
 
-# Kopírovanie a inštalácia závislostí
+# Inštalácia závislostí
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopírovanie celého projektu (vrátane zložky static)
+# Stiahnutie AI modelu pre embedingy počas buildu (Ušetrí čas pri reštarte!)
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')"
+
+# Kopírovanie celého projektu
 COPY . .
 
-# Port pre Coolify
 EXPOSE 8000
 
-# Spustenie aplikácie
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Spustenie aplikácie (S pridanou medzerou po CMD)
+CMD["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
