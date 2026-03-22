@@ -10,9 +10,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from knowledge import CESKA_NADRZ_KNOWLEDGE
 from xml_parser import fetch_and_parse_xml
-from database import upsert_products, search_products
+from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -45,7 +44,7 @@ class ChatResponse(BaseModel):
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# --- MAPOVANIE KATEGÓRIÍ A SEKCÍ ---
+# --- MAPOVANIE ODKAZOV NA STRÁNKY (KATEGÓRIE) ---
 URL_MAP = {
     "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10 kubikov", "deset kubiku", "10000", "set zahrada", "zahrada standard"],
     "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/":["1m3", "1 kubik", "mala nadrz", "kruhova nadrz 1m3"],
@@ -93,13 +92,18 @@ def detect_page_section(message: str) -> Optional[str]:
     return None
 
 async def update_database_task():
-    print("Spúšťam sťahovanie a aktualizáciu XML feedu...")
+    print("Sťahujem XML produkty...")
     products = await fetch_and_parse_xml()
     if products:
         upsert_products(products)
+    # Taktiež sa pri každom štarte uistíme, že markdown je načítaný
+    load_and_upsert_knowledge()
 
 @app.on_event("startup")
 async def startup_event():
+    # Načíta markdown súbor do vektorovej databázy pri štarte
+    load_and_upsert_knowledge()
+    
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.start()
@@ -107,44 +111,27 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž Qdrant Bot is running", "version": "3.1 (Claude Sonnet 100%)"}
+    return {"status": "Česká nádrž RAG Bot is running", "version": "4.0 (Dual DB)"}
 
-# ==========================================
-# POMOCNÁ FUNKCIA: PREFORMULOVANIE DOPYTU (Claude 3.5 Sonnet)
-# ==========================================
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
-    """Zoberie históriu chatu a vygeneruje z nej dokonalý hľadaný výraz pre databázu."""
-    
-    if len(chat_history) < 2:
-        return new_message
-        
+    if len(chat_history) < 2: return new_message
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]])
-    
     prompt = f"""Jsi interní vyhledávací systém e-shopu. Přečti si historii konverzace a poslední zprávu. 
 Tvojím JEDINÝM úkolem je vytvořit z toho jednu přesnou vyhledávací frázi (3-6 slov) pro fulltextové vyhledávání v databázi produktů.
-
 Historie konverzace:
 {history_text}
-
 Poslední zpráva: {new_message}
-
-PRAVIDLA - EXTRÉMNĚ DŮLEŽITÉ:
-1. Napiš POUZE samotnou vyhledávací frázi. Žádné uvozovky, žádné vysvětlování, žádné "Zde je fráze:".
-2. Pokud se uživatel pouze ptá na dopravu, zdraví, nebo řeší věci mimo výběr konkrétního produktu, napiš POUZE slovo: NONE
-"""
+PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o pozdrav nebo věc mimo e-shop, napiš NONE."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                # Používame Claude aj na preformulovanie
                 json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
-            query = data["choices"][0]["message"]["content"].strip().replace('"', '')
-            return query
-    except Exception as e:
-        print(f"Chyba pri optimalizácii dopytu: {e}")
+            return data["choices"][0]["message"]["content"].strip().replace('"', '')
+    except Exception:
         return new_message
 
 
@@ -153,22 +140,26 @@ async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
     if session_id not in sessions: sessions[session_id] =[]
     
-    # 1. KROK: VYTVORENIE DOKONALÉHO DOPYTU (Claude zhodnotí históriu)
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
-    print(f"🔍 Pôvodná správa: '{request.message}' | Optimalizované pre Qdrant: '{optimized_query}'")
-    
-    # Uložíme zákazníkovu správu do pamäte
     sessions[session_id].append({"role": "user", "content": request.message})
     
-    # 2. KROK: HĽADANIE V DATABÁZE QDRANT
+    # --- VYHĽADÁVANIE V 2 DATABÁZACH (Extrémne šetrenie tokenov) ---
+    
+    # 1. Hľadáme PRODUKTY (Top 8)
     products_context = ""
     if optimized_query != "NONE":
-        found_products = search_products(optimized_query, top_k=10)
-        products_context = "NAŠEL JSEM TYTO PRODUKTY V DATABÁZI (Z nich vyber ten absolutně nejlepší pro zákazníka):\n"
+        found_products = search_products(optimized_query, top_k=8)
+        products_context = "NALEZENÉ PRODUKTY V E-SHOPU:\n"
         for p in found_products:
             products_context += f"- Název: {p['name']} | Cena: {p['price']} | Odkaz: {p['url']} | Kategorie: {p['category']}\n"
         if not found_products:
-            products_context = "V databázi nebyly nalezeny žádné produkty, které by přesně odpovídaly dotazu."
+            products_context = "V databázi produktů nebylo nalezeno nic přesného."
+            
+    # 2. Hľadáme ODPOVEDE V MANUÁLE (Top 3 najrelevantnejšie odseky z tvojho dokumentu)
+    found_knowledge = search_knowledge(optimized_query, top_k=3)
+    knowledge_context = "FIREMNÍ DATABÁZE A FAQ (Použij pro odpověď na dotazy zákazníka):\n"
+    for k in found_knowledge:
+        knowledge_context += f"--- TÉMA: {k['title']} ---\n{k['content']}\n\n"
 
     lang_instruction = "MUSÍŠ odpovídat striktně ČESKY."
     if request.language == "sk": lang_instruction = "MUSÍŠ odpovedať striktne SLOVENSKY!"
@@ -177,15 +168,15 @@ async def chat(request: ChatRequest):
 
     system_prompt = (
         f"Jsi technický poradce a asistent e-shopu Česká nádrž.\n\n"
-        f"STATICKÁ FIREMNÍ DATABÁZE:\n{CESKA_NADRZ_KNOWLEDGE}\n\n"
+        f"{knowledge_context}\n"
         f"---------------------\n"
         f"{products_context}\n"
         f"---------------------\n"
         "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. KROK 1 (DOPTAZOVÁNÍ): Pokud vybíráme produkt, zjisti parametry (účel, objem, podloží, rozměry). Pokud je nevíš, ptej se!\n"
-        "2. KROK 2 (DOPORUČENÍ): Vyber ten nejlepší produkt ze seznamu 'NAŠEL JSEM TYTO PRODUKTY'. Vypiš jeho cenu, parametry a VŽDY vlož do zprávy PŘESNÝ ODKAZ (URL).\n"
-        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz na usazení, odbornou radu nebo složité řešení, IHNED ukonči prodej. Řekni: 'Tohle je specifický technický dotaz, který s vámi nejlépe vyřeší náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
-        "4. KROK 4 (NENALEZENO): Pokud seznam produktů výše nedává smysl nebo je prázdný, NEVYMÝŠLEJ SI! Napiš přesně: 'Bohužel, v databázi se mi aktuálně nepodařilo najít tento konkrétní produkt. Můžete ale zkusit vyhledat přímo v příslušné kategorii.'\n\n"
+        "1. KROK 1 (ODPOVĚDI A DOTAZY): Odpovídej na dotazy k produktům, dopravě, platbě nebo instalaci čistě na základě poskytnutých textů z 'FIREMNÍ DATABÁZE A FAQ'. Pokud zákazník vybírá nádrž a neuvedl objem nebo účel, dotaž se ho.\n"
+        "2. KROK 2 (DOPORUČENÍ): Pokud nabízíš produkt, vyber ho z 'NALEZENÉ PRODUKTY V E-SHOPU'. Vypiš jeho cenu, parametry a VŽDY vlož do zprávy PŘESNÝ ODKAZ (URL).\n"
+        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz, na který nemáš v databázi odpověď, nebo chce poradit s komplexním usazením, IHNED ukonči prodej. Řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
+        "4. KROK 4 (NENALEZENO): Pokud se ptá na produkt nebo službu, která není v textech výše, nevymýšlej si! Omluv se a případně ho odkaž na kategorii na webu.\n\n"
         "PRAVIDLA:\n"
         "- Vystupuj jako skutečný asistent e-shopu.\n"
         "- Nepoužívej hvězdičky (**) k formátování.\n"
@@ -193,13 +184,10 @@ async def chat(request: ChatRequest):
         f"- {lang_instruction}\n"
     )
     
-    # Pridávame do aktuálnej "otázky" na Claude až posledných 15 správ pre dokonalú pamäť
-    messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-15:]
+    messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
-    # 3. KROK: ODPOVEĎ OD HLAVNÉHO MODELU (Claude 3.5 Sonnet)
     try:
-        if not OPENROUTER_API_KEY:
-            raise Exception("API Key is missing.")
+        if not OPENROUTER_API_KEY: raise Exception("API Key is missing.")
 
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
@@ -210,7 +198,7 @@ async def chat(request: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 500}
+                json={"model": "anthropic/claude-3.5-sonnet", "messages": messages, "temperature": 0.2, "max_tokens": 600}
             )
             
             if response.status_code != 200:
