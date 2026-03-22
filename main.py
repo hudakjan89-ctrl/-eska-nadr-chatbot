@@ -3,7 +3,7 @@ import uuid
 import httpx
 import asyncio
 import unicodedata
-import re  # Kľúčové pre skrývanie škaredých odkazov a ich premenu na tlačidlo
+import re
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -41,12 +41,12 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
     page_section: Optional[str] = None
+    image_url: Optional[str] = None  # <--- NOVÝ PARAMETER PRE OBRÁZOK
     show_contact_form: bool = False
 
 def remove_diacritics(text: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
 
-# --- MAPOVANIE ODKAZOV NA STRÁNKY (KATEGÓRIE) ---
 URL_MAP = {
     "https://www.ceskanadrz.cz/10m3-nadrz-na-vodu-set-zahrada-standard/":["10m3", "10 kubiku", "10 kubikov", "deset kubiku", "10000", "set zahrada", "zahrada standard"],
     "https://www.ceskanadrz.cz/1m3-kruhova-nadrz-na-vodu-k-obetonovani/":["1m3", "1 kubik", "mala nadrz", "kruhova nadrz 1m3"],
@@ -94,7 +94,6 @@ def detect_page_section(message: str) -> Optional[str]:
     return None
 
 async def update_database_task():
-    print("Sťahujem XML produkty...")
     products = await fetch_and_parse_xml()
     if products:
         upsert_products(products)
@@ -110,7 +109,7 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž RAG Bot is running", "version": "5.2 (100% Fixed & Clean)"}
+    return {"status": "Česká nádrž RAG Bot is running", "version": "6.0 (Images + Texts)"}
 
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
@@ -126,7 +125,7 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "anthropic/claude-sonnet-4.6", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
@@ -140,11 +139,10 @@ async def chat(request: ChatRequest):
     if session_id not in sessions: sessions[session_id] =[]
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
-    print(f"Optimalizovaný dotaz pre databázu: {optimized_query}")
     sessions[session_id].append({"role": "user", "content": request.message})
     
-    # 1. Hľadáme PRODUKTY (Top 8)
     products_context = ""
+    found_products =[]
     if optimized_query != "NONE":
         found_products = search_products(optimized_query, top_k=8)
         products_context = "NALEZENÉ PRODUKTY V E-SHOPU:\n"
@@ -153,7 +151,6 @@ async def chat(request: ChatRequest):
         if not found_products:
             products_context = "V databázi produktů nebylo nalezeno nic přesného."
             
-    # 2. Hľadáme ODPOVEDE V MANUÁLE (Top 3 najrelevantnejšie odseky)
     found_knowledge = search_knowledge(optimized_query, top_k=3)
     knowledge_context = "FIREMNÍ DATABÁZE A FAQ (Použij pro odpověď na dotazy zákazníka):\n"
     for k in found_knowledge:
@@ -170,7 +167,7 @@ async def chat(request: ChatRequest):
         f"---------------------\n"
         f"{products_context}\n"
         f"---------------------\n"
-        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA (ČTI POZORNĚ!):\n"
+        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA:\n"
         "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti parametry (účel, objem, rozměry). Pokud je nevíš, ptej se! NIKDY nenabízej konkrétní produkt naslepo bez zjištění parametrů.\n"
         "2. KROK 2 (DOPORUČENÍ): Vyber nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Popiš ho, uveď cenu. ZÁKAZ: NIKDY nepiš odkaz přímo do věty jako text! Vždy na úplný konec své zprávy přidej skrytý tag s odkazem:[URL: zde_vloz_odkaz_z_databaze]\n"
         "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz (usazení, jíl), na který neznáš přesnou odpověď z manuálu, IHNED ukonči prodej. Řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
@@ -196,7 +193,7 @@ async def chat(request: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "anthropic/claude-3.5-sonnet", "messages": messages, "temperature": 0.2, "max_tokens": 600}
+                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 600}
             )
             
             if response.status_code != 200:
@@ -205,23 +202,26 @@ async def chat(request: ChatRequest):
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
-            # --- MAGICKÉ ZACHYTENIE URL ---
-            # Zoberieme škaredý odkaz [URL: https...] z konca správy, vymažeme ho, a prepošleme ho do frontendu ako modré tlačidlo
             detected_url = detect_page_section(request.message) 
+            detected_image = None
             url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
             
             if url_match:
                 detected_url = url_match.group(1)
                 assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
+                
+                # --- PRIRADENIE OBRÁZKU Z DATABÁZY ---
+                for p in found_products:
+                    if p.get('url') == detected_url:
+                        detected_image = p.get('image_url')
+                        break
 
-            # --- ZACHYTENIE FORMULÁRU ---
             show_form = False
             msg_lower = assistant_message.lower()
             if "[SHOW_CONTACT_FORM]" in assistant_message or "zanechte mi" in msg_lower or "formulář" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
             
-            # Očistenie od hviezdičiek
             assistant_message = assistant_message.replace("**", "")
 
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
@@ -230,6 +230,7 @@ async def chat(request: ChatRequest):
                 response=assistant_message, 
                 session_id=session_id, 
                 page_section=detected_url,
+                image_url=detected_image,  # <--- ODOŠLE SA DO FRONTENDU
                 show_contact_form=show_form
             )
             
