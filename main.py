@@ -3,6 +3,7 @@ import uuid
 import httpx
 import asyncio
 import unicodedata
+import re  # Kľúčové pre skrývanie škaredých odkazov a ich premenu na tlačidlo
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -97,14 +98,11 @@ async def update_database_task():
     products = await fetch_and_parse_xml()
     if products:
         upsert_products(products)
-    # Taktiež sa pri každom štarte uistíme, že markdown je načítaný
     load_and_upsert_knowledge()
 
 @app.on_event("startup")
 async def startup_event():
-    # Načíta markdown súbor do vektorovej databázy pri štarte
     load_and_upsert_knowledge()
-    
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.start()
@@ -112,7 +110,7 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž RAG Bot is running", "version": "4.0 (Dual DB)"}
+    return {"status": "Česká nádrž RAG Bot is running", "version": "5.2 (100% Fixed & Clean)"}
 
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
@@ -142,9 +140,8 @@ async def chat(request: ChatRequest):
     if session_id not in sessions: sessions[session_id] =[]
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
+    print(f"Optimalizovaný dotaz pre databázu: {optimized_query}")
     sessions[session_id].append({"role": "user", "content": request.message})
-    
-    # --- VYHĽADÁVANIE V 2 DATABÁZACH (Extrémne šetrenie tokenov) ---
     
     # 1. Hľadáme PRODUKTY (Top 8)
     products_context = ""
@@ -156,7 +153,7 @@ async def chat(request: ChatRequest):
         if not found_products:
             products_context = "V databázi produktů nebylo nalezeno nic přesného."
             
-    # 2. Hľadáme ODPOVEDE V MANUÁLE (Top 3 najrelevantnejšie odseky z tvojho dokumentu)
+    # 2. Hľadáme ODPOVEDE V MANUÁLE (Top 3 najrelevantnejšie odseky)
     found_knowledge = search_knowledge(optimized_query, top_k=3)
     knowledge_context = "FIREMNÍ DATABÁZE A FAQ (Použij pro odpověď na dotazy zákazníka):\n"
     for k in found_knowledge:
@@ -168,20 +165,20 @@ async def chat(request: ChatRequest):
     elif request.language == "uk": lang_instruction = "Ти ПОВИНЕН відповідати строго УКРАЇНСЬКОЮ мовою!"
 
     system_prompt = (
-        f"Jsi technický poradce a asistent e-shopu Česká nádrž.\n\n"
+        f"Jsi technický poradce a asistent e-shopu Česká nádrž. Tvůj tón je přátelský a vysoce odborný.\n\n"
         f"{knowledge_context}\n"
         f"---------------------\n"
         f"{products_context}\n"
         f"---------------------\n"
-        "TVÉ HLAVNÍ ÚKOLY:\n"
-        "1. KROK 1 (ODPOVĚDI A DOTAZY): Odpovídej na dotazy k produktům, dopravě, platbě nebo instalaci čistě na základě poskytnutých textů z 'FIREMNÍ DATABÁZE A FAQ'. Pokud zákazník vybírá nádrž a neuvedl objem nebo účel, dotaž se ho.\n"
-        "2. KROK 2 (DOPORUČENÍ): Pokud nabízíš produkt, vyber ho z 'NALEZENÉ PRODUKTY V E-SHOPU'. Vypiš jeho cenu, parametry a VŽDY vlož do zprávy PŘESNÝ ODKAZ (URL).\n"
-        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz, na který nemáš v databázi odpověď, nebo chce poradit s komplexním usazením, IHNED ukonči prodej. Řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
-        "4. KROK 4 (NENALEZENO): Pokud se ptá na produkt nebo službu, která není v textech výše, nevymýšlej si! Omluv se a případně ho odkaž na kategorii na webu.\n\n"
+        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA (ČTI POZORNĚ!):\n"
+        "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti parametry (účel, objem, rozměry). Pokud je nevíš, ptej se! NIKDY nenabízej konkrétní produkt naslepo bez zjištění parametrů.\n"
+        "2. KROK 2 (DOPORUČENÍ): Vyber nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Popiš ho, uveď cenu. ZÁKAZ: NIKDY nepiš odkaz přímo do věty jako text! Vždy na úplný konec své zprávy přidej skrytý tag s odkazem:[URL: zde_vloz_odkaz_z_databaze]\n"
+        "3. KROK 3 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz (usazení, jíl), na který neznáš přesnou odpověď z manuálu, IHNED ukonči prodej. Řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
+        "4. KROK 4 (NENALEZENO): Pokud seznam produktů nebo FAQ nedává smysl, nevymýšlej si! Omluv se a případně odkaž na kategorii.\n\n"
         "PRAVIDLA:\n"
-        "- Vystupuj jako skutečný asistent e-shopu.\n"
+        "- Vystupuj jako asistent e-shopu. Nezmiňuj umělou inteligenci.\n"
         "- Nepoužívej hvězdičky (**) k formátování.\n"
-        "- TAG[SHOW_CONTACT_FORM] přidej POUZE V KROKU 3!\n"
+        "- ZÁKAZ: Odkazy vkládej výhradně do tagu [URL: ...], nikdy jako prostý text.\n"
         f"- {lang_instruction}\n"
     )
     
@@ -208,14 +205,26 @@ async def chat(request: ChatRequest):
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
+            # --- MAGICKÉ ZACHYTENIE URL ---
+            # Zoberieme škaredý odkaz [URL: https...] z konca správy, vymažeme ho, a prepošleme ho do frontendu ako modré tlačidlo
+            detected_url = detect_page_section(request.message) 
+            url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
+            
+            if url_match:
+                detected_url = url_match.group(1)
+                assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
+
+            # --- ZACHYTENIE FORMULÁRU ---
             show_form = False
             msg_lower = assistant_message.lower()
             if "[SHOW_CONTACT_FORM]" in assistant_message or "zanechte mi" in msg_lower or "formulář" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
             
+            # Očistenie od hviezdičiek
+            assistant_message = assistant_message.replace("**", "")
+
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
-            detected_url = detect_page_section(request.message)
             
             return ChatResponse(
                 response=assistant_message, 
