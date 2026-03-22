@@ -26,7 +26,7 @@
              <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
-            <div class="chat-header-title">Virtuální asistent – Česká nádrž </div>
+            <div class="chat-header-title">Česká nádrž AI</div>
             <div class="chat-header-status">
               <span class="status-dot"></span>
               <span id="statusText">Online</span>
@@ -88,11 +88,12 @@
   let isFirstMessage = true;
   let typingInterval = null;
 
+  // --- AKTUALIZOVANÉ TEXTY ---
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete přejít na produkt/sekci?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno", cfLname: "Příjmení", cfEmail: "E-mail", cfBtn: "Odeslat kontakt", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím jméno a e-mail." },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete prejsť na produkt/sekciu?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno", cfLname: "Priezvisko", cfEmail: "E-mail", cfBtn: "Odoslať kontakt", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím meno a e-mail." },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a matching link. Would you like to check it out?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "First Name", cfLname: "Last Name", cfEmail: "E-mail", cfBtn: "Submit contact", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out your name and email." },
-    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте перейти до товару/розділу?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Ім'я", cfLname: "Прізвище", cfEmail: "E-mail", cfBtn: "Надіслати контакт", cfSuccess: "✔ Дані надіслано. Дякуємо!", cfErr: "Будь ласка, введіть ім'я та e-mail." }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný produkt. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfBtn: "Odeslat / Submit", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím všechna pole (Jméno, Email, Telefon)." },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný produkt. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfBtn: "Odoslať / Submit", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím všetky polia (Meno, Email, Telefón)." },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a suitable product. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfBtn: "Submit", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out all fields (Name, Email, Phone)." },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідний продукт. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfBtn: "Надіслати", cfSuccess: "✔ Дані надіслано. Дякуємо!", cfErr: "Будь ласка, заповніть усі поля." }
   };
 
   const QUICK_ACTIONS = {
@@ -153,24 +154,53 @@
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
   }
 
-  function showPageLinkButtons(pageUrl) {
-    const row = document.createElement("div"); row.className = "page-link-prompt";
-    const text = document.createElement("div"); text.className = "page-link-text"; text.textContent = UI_TEXT[selectedLang].showOnPage;
-    const buttons = document.createElement("div"); buttons.className = "page-link-buttons";
-    const btnYes = document.createElement("button"); btnYes.className = "page-link-btn page-link-btn-yes"; btnYes.textContent = UI_TEXT[selectedLang].btnYes; btnYes.dataset.url = pageUrl;
-    const btnNo = document.createElement("button"); btnNo.className = "page-link-btn page-link-btn-no"; btnNo.textContent = UI_TEXT[selectedLang].btnNo;
-    buttons.appendChild(btnYes); buttons.appendChild(btnNo); row.appendChild(text); row.appendChild(buttons);
-    chatBox.appendChild(row); scrollToBottom();
+  // --- VYKRESLENIE PRODUKTU (OBRÁZOK + TLAČIDLÁ) ---
+  function showPageLinkButtons(pageUrl, imageUrl = null) {
+    const row = document.createElement("div"); 
+    row.className = "page-link-prompt";
+    
+    // Ak server poslal aj obrázok, vytvoríme preňho krásny biely obal
+    let imgHtml = "";
+    if (imageUrl) {
+        imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 12px; border: 1px solid var(--bot-msg-border);">
+                      <img src="${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
+                   </div>`;
+    }
+    
+    const text = document.createElement("div"); 
+    text.className = "page-link-text"; 
+    text.textContent = UI_TEXT[selectedLang].showOnPage;
+    
+    const buttons = document.createElement("div"); 
+    buttons.className = "page-link-buttons";
+    
+    const btnYes = document.createElement("button"); 
+    btnYes.className = "page-link-btn page-link-btn-yes"; 
+    btnYes.textContent = UI_TEXT[selectedLang].btnYes; 
+    btnYes.dataset.url = pageUrl;
+    
+    const btnNo = document.createElement("button"); 
+    btnNo.className = "page-link-btn page-link-btn-no"; 
+    btnNo.textContent = UI_TEXT[selectedLang].btnNo;
+    
+    buttons.appendChild(btnYes); 
+    buttons.appendChild(btnNo); 
+    
+    if(imgHtml) row.insertAdjacentHTML('beforeend', imgHtml);
+    row.appendChild(text); 
+    row.appendChild(buttons);
+    
+    chatBox.appendChild(row); 
+    scrollToBottom();
   }
 
-   function renderContactForm() {
+  function renderContactForm() {
     const row = document.createElement("div"); row.className = "contact-form-container";
-    // Meno, Email, Telefón (presne podľa PDF dokumentu!)
     row.innerHTML = `
-      <input type="text" class="cf-input cf-fname" placeholder="Jméno a Příjmení / Meno">
-      <input type="email" class="cf-input cf-email" placeholder="E-mail">
-      <input type="tel" class="cf-input cf-phone" placeholder="Telefonní číslo">
-      <button class="cf-submit-btn">Odeslat / Submit</button>
+      <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
+      <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
+      <input type="tel" class="cf-input cf-phone" placeholder="${UI_TEXT[selectedLang].cfPhone}">
+      <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); scrollToBottom();
 
@@ -180,10 +210,10 @@
       const email = row.querySelector('.cf-email').value.trim();
       const phone = row.querySelector('.cf-phone').value.trim();
 
-      if (!fname || !email || !phone) { alert("Vyplňte prosím všechna pole (Jméno, Email, Telefon)."); return; }
+      if (!fname || !email || !phone) { alert(UI_TEXT[selectedLang].cfErr); return; }
 
-      row.innerHTML = `<div class="cf-success">✔ Údaje odeslány. Děkujeme!</div>`;
-      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname}, Email: ${email}, Telefon: ${phone}). Poděkuj mu, řekni že to předáváš specialistovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
+      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname}, Email: ${email}, Telefon: ${phone}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
       addMessage(`[Odeslán kontakt: ${fname}, ${email}, ${phone}]`, "user", false);
       sendDirectMessageToAPI(hiddenMessage);
@@ -276,7 +306,8 @@
       
       await streamText(bubble, data.response);
       
-      if (data.page_section) showPageLinkButtons(data.page_section);
+      // ODOŠLE SA AJ OBRÁZOK DO FRONTENDU
+      if (data.page_section) showPageLinkButtons(data.page_section, data.image_url);
       if (data.show_contact_form) renderContactForm();
       
     } catch (err) {
