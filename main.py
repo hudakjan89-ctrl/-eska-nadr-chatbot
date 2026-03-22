@@ -2,6 +2,7 @@ import os
 import uuid
 import httpx
 import asyncio
+import unicodedata
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
