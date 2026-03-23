@@ -126,7 +126,7 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer ", "Content-Type": "application/json"},
                 json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
@@ -140,7 +140,7 @@ async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
     if session_id not in sessions: sessions[session_id] = []
     
-    # LOGOVANIE: Správa od užívateľa
+    # Hneď ako dostaneš správu od užívateľa:
     log_message(session_id, "user", request.message)
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
@@ -193,7 +193,7 @@ async def chat(request: ChatRequest):
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {}",
+                    "Authorization": f"Bearer ",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
@@ -212,7 +212,7 @@ async def chat(request: ChatRequest):
             url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
             
             if url_match:
-                # LOGOVANIE: Detekcia odporúčania produktu
+                # Ak bot nájde URL (odporúča produkt):
                 log_event("product_recommendation")
                 
                 detected_url = url_match.group(1)
@@ -234,7 +234,7 @@ async def chat(request: ChatRequest):
 
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
             
-            # LOGOVANIE: Správa od bota
+            # Hneď ako bot vygeneruje odpoveď:
             log_message(session_id, "bot", assistant_message)
             
             return ChatResponse(
