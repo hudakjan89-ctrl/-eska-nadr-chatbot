@@ -11,14 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
+from admin import router as admin_router
+from logger import log_message, log_event
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 app = FastAPI()
+
+app.include_router(admin_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,14 +120,13 @@ async def generate_optimized_search_query(chat_history: list, new_message: str) 
     prompt = f"""Jsi interní vyhledávací systém e-shopu. Přečti si historii konverzace a poslední zprávu. 
 Tvojím JEDINÝM úkolem je vytvořit z toho jednu přesnou vyhledávací frázi (3-6 slov) pro fulltextové vyhledávání v databázi produktů.
 Historie konverzace:
-{history_text}
-Poslední zpráva: {new_message}
+Poslední zpráva: 
 PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o pozdrav nebo věc mimo e-shop, napiš NONE."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {}", "Content-Type": "application/json"},
                 json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
@@ -136,13 +138,16 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
-    if session_id not in sessions: sessions[session_id] =[]
+    if session_id not in sessions: sessions[session_id] = []
+    
+    # LOGOVANIE: Správa od užívateľa
+    log_message(session_id, "user", request.message)
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
     sessions[session_id].append({"role": "user", "content": request.message})
     
     products_context = ""
-    found_products =[]
+    found_products = []
     if optimized_query != "NONE":
         found_products = search_products(optimized_query, top_k=8)
         products_context = "NALEZENÉ PRODUKTY V E-SHOPU:\n"
@@ -163,9 +168,9 @@ async def chat(request: ChatRequest):
 
     system_prompt = (
         f"Jsi technický poradce a asistent e-shopu Česká nádrž. Tvůj tón je přátelský a vysoce odborný.\n\n"
-        f"{knowledge_context}\n"
+        f"\n"
         f"---------------------\n"
-        f"{products_context}\n"
+        f"\n"
         f"---------------------\n"
         "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA:\n"
         "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti parametry (účel, objem, rozměry). Pokud je nevíš, ptej se! NIKDY nenabízej konkrétní produkt naslepo bez zjištění parametrů.\n"
@@ -176,10 +181,10 @@ async def chat(request: ChatRequest):
         "- Vystupuj jako asistent e-shopu. Nezmiňuj umělou inteligenci.\n"
         "- Nepoužívej hvězdičky (**) k formátování.\n"
         "- ZÁKAZ: Odkazy vkládej výhradně do tagu [URL: ...], nikdy jako prostý text.\n"
-        f"- {lang_instruction}\n"
+        f"- \n"
     )
     
-    messages =[{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
+    messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
         if not OPENROUTER_API_KEY: raise Exception("API Key is missing.")
@@ -188,7 +193,7 @@ async def chat(request: ChatRequest):
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Authorization": f"Bearer {}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
@@ -207,6 +212,9 @@ async def chat(request: ChatRequest):
             url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
             
             if url_match:
+                # LOGOVANIE: Detekcia odporúčania produktu
+                log_event("product_recommendation")
+                
                 detected_url = url_match.group(1)
                 assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
                 
@@ -225,6 +233,9 @@ async def chat(request: ChatRequest):
             assistant_message = assistant_message.replace("**", "")
 
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
+            
+            # LOGOVANIE: Správa od bota
+            log_message(session_id, "bot", assistant_message)
             
             return ChatResponse(
                 response=assistant_message, 
