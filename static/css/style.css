@@ -89,7 +89,7 @@
   font-size: 15px; 
   line-height: 1.1;
   /* TÝMTO ZDVIHNEŠ NADPIS VYŠŠIE O 3 PIXELY */
-  margin-top: -2px; 
+  margin-top: -4px; 
 }
 .chat-header-status { 
   margin-top: 0; /* Zmazaný pôvodný margin */
