@@ -84,8 +84,20 @@
 .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; }
 /* Čistý avatar v hlavičke */
 .chat-header-avatar { width: 36px; height: 36px; border-radius: 50%; background: transparent !important; border: none !important; box-shadow: none !important; display: flex; align-items: center; justify-content: center; padding: 0 !important; }
-.chat-header-title { font-weight: 600; font-size: 15px; }
-.chat-header-status { margin-top: 2px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.chat-header-title { 
+  font-weight: 600; 
+  font-size: 15px; 
+  line-height: 1; /* Zruší neviditeľný priestor pod textom */
+  margin-bottom: 2px; /* Jemnučká medzera, aby sa to úplne nedotýkalo */
+}
+.chat-header-status { 
+  margin-top: 0; /* Zmazaný pôvodný margin */
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-size: 12px; 
+  line-height: 1; 
+}
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
 
 /* ============== Settings (Tlačidlo a Menu) ============== */
