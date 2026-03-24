@@ -26,7 +26,7 @@
              <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
-            <div class="chat-header-title">Virtuální asistent – Česká nádrž</div>
+            <div class="chat-header-title">Virtuální asistent</div>
             <div class="chat-header-status">
               <span class="status-dot"></span>
               <span id="statusText">Online</span>
