@@ -103,7 +103,7 @@
   };
 
   const INSTANT_ANSWERS = {
-    cs: { guide: "Rád pomohu! Na co budete nádrž primárně potřebovat? (Dešťovka, jímka, septik?)", shipping: "Dopravu velkých nádrží máme po ČR ZDARMA! Platí se hotově u řidiče nebo převodem.", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 723 045 274." },
+    cs: { guide: "Rád pomohu! Na co budete nádrž primárně potřebovat? (Nádrž na dešťovou vodu, jímka, septik?)", shipping: "Dopravu velkých nádrží máme po ČR ZDARMA! Platí se hotově u řidiče nebo převodem.", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 723 045 274." },
     sk: { guide: "Rád pomôžem! Na čo budete nádrž primárne potrebovať? (Dažďová voda, žumpa, septik?)", shipping: "Dopravu veľkých nádrží máme po ČR ZDARMA! Platí sa v hotovosti u vodiča alebo prevodom.", contact: "Napíšte na obchod@ceskanadrz.cz alebo zavolajte na 723 045 274." },
     en: { guide: "I'd be happy to help! What will you use the tank for primarily?", shipping: "We offer FREE shipping for large tanks within the CZ! Payment is via cash on delivery or bank transfer.", contact: "Email us at obchod@ceskanadrz.cz or call 723 045 274." },
     uk: { guide: "З радістю допоможу! Для чого вам потрібен резервуар? (Дощова вода, вигрібна яма, септик?)", shipping: "Доставка великих резервуарів по Чехії БЕЗКОШТОВНА! Оплата готівкою водієві або переказом.", contact: "Напишіть на obchod@ceskanadrz.cz або зателефонуйте 723 045 274." }
