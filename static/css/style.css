@@ -38,7 +38,7 @@
 .eniq-launcher {
   position: fixed; right: 20px; bottom: 20px;
   width: 65px; height: 65px; border-radius: 50%;
-  background: #005b9f; border: none; box-shadow: 0 8px 24px rgba(0, 91, 159, 0.4);
+  background: transparent; border: none; box-shadow: none;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 1000;
   animation: softBounce 3.2s ease-in-out infinite; transition: all 0.2s;
@@ -124,7 +124,7 @@
   from { opacity: 0; transform: translateY(8px); } 
   to { opacity: 1; transform: translateY(0); } 
 }
-.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #005b9f; padding: 4px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: transparent padding: 0; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .message.bot { align-items: flex-end; }
 .message.user { flex-direction: row-reverse; margin-left: auto; max-width: 85%; }
 .message.user .message-avatar { display: none !important; }
@@ -135,7 +135,7 @@
 
 /* ============== Searching & Typing ============== */
 .searching-row { display: flex; gap: 10px; align-items: flex-end; margin: -2px 0 12px 0; }
-.searching-row .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #005b9f; padding: 4px; }
+.searching-row .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: transparent; padding: 0; }
 .searching-bubble { background: var(--bot-msg-bg); border: 1px solid var(--bot-msg-border); color: var(--text-primary); padding: 10px 12px; border-radius: 14px; border-bottom-left-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 2px; }
 .typing-cursor { animation: blink 0.8s step-end infinite; }
 @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
