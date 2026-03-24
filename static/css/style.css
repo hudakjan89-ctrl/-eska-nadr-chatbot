@@ -37,7 +37,7 @@
 /* ZVÄČŠENÉ NA 80px */
 .eniq-launcher {
   position: fixed; right: 20px; bottom: 20px;
-  width: 100px; height: 100px; border-radius: 50%;
+  width: 150px; height: 150px; border-radius: 50%;
   background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 1000;
