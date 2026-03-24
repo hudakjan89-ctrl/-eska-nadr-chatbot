@@ -15,7 +15,7 @@
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
       <div class="eniq-launcher-avatar">
-        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'">
+        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
       </div>
     </div>
 
@@ -23,10 +23,10 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'">
+             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
-            <div class="chat-header-title">Česká nádrž AI</div>
+            <div class="chat-header-title">Virtuální asistent – Česká nádrž</div>
             <div class="chat-header-status">
               <span class="status-dot"></span>
               <span id="statusText">Online</span>
@@ -154,39 +154,21 @@
   }
 
   function showPageLinkButtons(pageUrl, imageUrl = null) {
-    const row = document.createElement("div"); 
-    row.className = "page-link-prompt";
-    
+    const row = document.createElement("div"); row.className = "page-link-prompt";
     let imgHtml = "";
     if (imageUrl) {
         imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: transparent; padding: 0; border: none;">
                       <img src="${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
                    </div>`;
     }
-    
-    const text = document.createElement("div"); 
-    text.className = "page-link-text"; 
-    text.textContent = UI_TEXT[selectedLang].showOnPage;
-    
-    const buttons = document.createElement("div"); 
-    buttons.className = "page-link-buttons";
-    
-    const btnYes = document.createElement("button"); 
-    btnYes.className = "page-link-btn page-link-btn-yes"; 
-    btnYes.textContent = UI_TEXT[selectedLang].btnYes; 
-    btnYes.dataset.url = pageUrl;
-    
-    const btnNo = document.createElement("button"); 
-    btnNo.className = "page-link-btn page-link-btn-no"; 
-    btnNo.textContent = UI_TEXT[selectedLang].btnNo;
-    
-    buttons.appendChild(btnYes); 
-    buttons.appendChild(btnNo); 
-    
+    const text = document.createElement("div"); text.className = "page-link-text"; text.textContent = UI_TEXT[selectedLang].showOnPage;
+    const buttons = document.createElement("div"); buttons.className = "page-link-buttons";
+    const btnYes = document.createElement("button"); btnYes.className = "page-link-btn page-link-btn-yes"; btnYes.textContent = UI_TEXT[selectedLang].btnYes; btnYes.dataset.url = pageUrl;
+    const btnNo = document.createElement("button"); btnNo.className = "page-link-btn page-link-btn-no"; btnNo.textContent = UI_TEXT[selectedLang].btnNo;
+    buttons.appendChild(btnYes); buttons.appendChild(btnNo); 
     if(imgHtml) row.insertAdjacentHTML('beforeend', imgHtml);
     row.appendChild(text); 
     row.appendChild(buttons);
-    
     chatBox.appendChild(row); 
     scrollToBottom();
   }
@@ -220,7 +202,7 @@
   function addMessage(text, type, showActions = false) {
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); chatBox.appendChild(row);
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
@@ -239,7 +221,7 @@
 
   function showSearching() {
     const row = document.createElement("div"); row.className = "searching-row";
-    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
+    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottom();
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
     typingInterval = setInterval(() => { if (index < text.length) { textEl.textContent += text[index++]; scrollToBottom(); } else clearInterval(typingInterval); }, 80);
@@ -275,7 +257,7 @@
     if (actionBtn) {
       isFirstMessage = false; addMessage(actionBtn.textContent.trim(), "user", false);
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]);
     }
@@ -298,7 +280,7 @@
       hideSearching();
       
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       
       await streamText(bubble, data.response);
