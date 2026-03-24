@@ -15,7 +15,7 @@
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
       <div class="eniq-launcher-avatar">
-        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" onerror="this.style.display='none'">
+        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'">
       </div>
     </div>
 
@@ -23,7 +23,7 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;" onerror="this.style.display='none'">
+             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Česká nádrž AI</div>
@@ -88,7 +88,6 @@
   let isFirstMessage = true;
   let typingInterval = null;
 
-  // --- AKTUALIZOVANÉ TEXTY ---
   const UI_TEXT = {
     cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný produkt. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfBtn: "Odeslat / Submit", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím všechna pole (Jméno, Email, Telefon)." },
     sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný produkt. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfBtn: "Odoslať / Submit", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím všetky polia (Meno, Email, Telefón)." },
@@ -154,15 +153,13 @@
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
   }
 
-  // --- VYKRESLENIE PRODUKTU (OBRÁZOK + TLAČIDLÁ) ---
   function showPageLinkButtons(pageUrl, imageUrl = null) {
     const row = document.createElement("div"); 
     row.className = "page-link-prompt";
     
-    // Ak server poslal aj obrázok, vytvoríme preňho krásny biely obal
     let imgHtml = "";
     if (imageUrl) {
-        imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: #fff; padding: 10px; border-radius: 12px; border: 1px solid var(--bot-msg-border);">
+        imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: transparent; padding: 0; border: none;">
                       <img src="${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
                    </div>`;
     }
@@ -223,7 +220,7 @@
   function addMessage(text, type, showActions = false) {
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); chatBox.appendChild(row);
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
@@ -242,7 +239,7 @@
 
   function showSearching() {
     const row = document.createElement("div"); row.className = "searching-row";
-    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
+    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottom();
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
     typingInterval = setInterval(() => { if (index < text.length) { textEl.textContent += text[index++]; scrollToBottom(); } else clearInterval(typingInterval); }, 80);
@@ -278,7 +275,7 @@
     if (actionBtn) {
       isFirstMessage = false; addMessage(actionBtn.textContent.trim(), "user", false);
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]);
     }
@@ -301,12 +298,11 @@
       hideSearching();
       
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: contain; background: transparent; border: none; outline: none;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       
       await streamText(bubble, data.response);
       
-      // ODOŠLE SA AJ OBRÁZOK DO FRONTENDU
       if (data.page_section) showPageLinkButtons(data.page_section, data.image_url);
       if (data.show_contact_form) renderContactForm();
       
