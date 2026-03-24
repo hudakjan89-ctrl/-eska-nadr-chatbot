@@ -87,8 +87,9 @@
 .chat-header-title { 
   font-weight: 600; 
   font-size: 15px; 
-  line-height: 1; /* Zruší neviditeľný priestor pod textom */
-  margin-bottom: 2px; /* Jemnučká medzera, aby sa to úplne nedotýkalo */
+  line-height: 1.1;
+  /* TÝMTO ZDVIHNEŠ NADPIS VYŠŠIE O 3 PIXELY */
+  margin-top: -2px; 
 }
 .chat-header-status { 
   margin-top: 0; /* Zmazaný pôvodný margin */
