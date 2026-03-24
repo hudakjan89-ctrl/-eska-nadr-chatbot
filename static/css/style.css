@@ -140,7 +140,7 @@
 .message.user .message-avatar { display: none !important; }
 
 /* Tvar bubliny a text 14px */
-.message-content { max-width: 100%; padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.message-content { max-width: 100%; padding: 12px 14px; border-radius: 14px; font-size: 12px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 .message.bot .message-content { 
   background: var(--bot-msg-bg); color: var(--text-primary); 
   border-top-left-radius: 4px; 
