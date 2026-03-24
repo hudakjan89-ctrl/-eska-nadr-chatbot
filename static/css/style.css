@@ -38,7 +38,11 @@
 .eniq-launcher {
   position: fixed; right: 20px; bottom: 20px;
   width: 65px; height: 65px; border-radius: 50%;
-  background: #005b9f; border: none; box-shadow: 0 8px 24px rgba(0, 91, 159, 0.4);
+    /* TU SÚ ZMENY - pridaný outline: none a box-shadow: none */
+  background: transparent !important; 
+  border: none !important; 
+  outline: none !important;
+  box-shadow: none !important; 
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 1000;
   animation: softBounce 3.2s ease-in-out infinite; transition: all 0.2s;
@@ -124,7 +128,12 @@
   from { opacity: 0; transform: translateY(8px); } 
   to { opacity: 1; transform: translateY(0); } 
 }
-.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #005b9f; padding: 4px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: transparent !important; 
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important; 
+  display: flex; align-items: center; justify-content: center; flex: 0 0 auto; 
+}
 .message.bot { align-items: flex-end; }
 .message.user { flex-direction: row-reverse; margin-left: auto; max-width: 85%; }
 .message.user .message-avatar { display: none !important; }
