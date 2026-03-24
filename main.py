@@ -127,7 +127,7 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer ", "Content-Type": "application/json"},
-                json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                json={"model": "anthropic/claude-sonnet-4.6", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
