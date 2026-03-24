@@ -54,6 +54,7 @@
   position: fixed; right: 35px; bottom: 110px; /* Mierne posunuté kvôli väčšiemu launcheru */
   width: 380px; height: 60vh; max-height: 672px; max-width: 92vw;
   background: var(--panel-bg); color: var(--text-primary);
+   border: 2px solid #005b9f !important; 
   border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 16px; overflow: hidden; 
   display: none; flex-direction: column;
   z-index: 1005; box-shadow: 0 12px 40px rgba(0,0,0,0.15);
