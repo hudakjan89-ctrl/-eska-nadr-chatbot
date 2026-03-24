@@ -34,11 +34,11 @@
 }
 
 /* ============== Launcher ============== */
-/* Zmenené pozície, aby launcher pekne vykukoval zozadu, aj keď je panel otvorený */
+/* ZRUŠENÉ MODRÉ POZADIE A TIEŇ - Ikonka je teraz úplne čistá */
 .eniq-launcher {
   position: fixed; right: 20px; bottom: 20px;
   width: 65px; height: 65px; border-radius: 50%;
-  background: #005b9f; border: none; box-shadow: 0 8px 24px rgba(0, 91, 159, 0.4);
+  background: transparent; border: none; box-shadow: none;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 1000;
   animation: softBounce 3.2s ease-in-out infinite; transition: all 0.2s;
@@ -51,7 +51,7 @@
 
 /* ============== Panel ============== */
 .eniq-panel {
-  position: fixed; right: 35px; bottom: 95px; /* Posunuté nad launcher */
+  position: fixed; right: 35px; bottom: 95px;
   width: 380px; height: 60vh; max-height: 672px; max-width: 92vw;
   background: var(--panel-bg); color: var(--text-primary);
   border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 16px; overflow: hidden; 
@@ -72,7 +72,8 @@
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
 .chat-header-left { display: flex; align-items: center; gap: 10px; flex: 1; }
-.chat-header-avatar { width: 36px; height: 36px; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; padding: 4px; }
+/* ZRUŠENÉ BIELE POZADIE A PADDING */
+.chat-header-avatar { width: 36px; height: 36px; border-radius: 50%; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; }
 .chat-header-title { font-weight: 600; font-size: 15px; }
 .chat-header-status { margin-top: 2px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
@@ -101,14 +102,12 @@
 .settings-item { display: flex; flex-direction: column; gap: 8px; }
 .settings-label { font-size: 13px; font-weight: 600; }
 
-/* Toggles (Switches) */
 .toggle-container { display: flex; align-items: center; justify-content: space-between; }
 .toggle-switch { position: relative; width: 50px; height: 26px; background: #d1d5db; border-radius: 999px; cursor: pointer; transition: 0.3s; }
 .toggle-switch.active { background: #005b9f; }
 .toggle-slider { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 .toggle-switch.active .toggle-slider { transform: translateX(24px); }
 
-/* Jazyk Select */
 .lang-select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); font-size: 13px; cursor: pointer; outline: none; }
 
 .close-btn { width: 28px; height: 28px; border-radius: 8px; border: 0; cursor: pointer; background: transparent; color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8;}
@@ -124,7 +123,8 @@
   from { opacity: 0; transform: translateY(8px); } 
   to { opacity: 1; transform: translateY(0); } 
 }
-.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #005b9f; padding: 4px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+/* ZRUŠENÉ MODRÉ POZADIE A PADDING v Chat bublinách */
+.message-avatar { width: 32px; height: 32px; border-radius: 50%; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .message.bot { align-items: flex-end; }
 .message.user { flex-direction: row-reverse; margin-left: auto; max-width: 85%; }
 .message.user .message-avatar { display: none !important; }
@@ -135,7 +135,8 @@
 
 /* ============== Searching & Typing ============== */
 .searching-row { display: flex; gap: 10px; align-items: flex-end; margin: -2px 0 12px 0; }
-.searching-row .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: #005b9f; padding: 4px; }
+/* ZRUŠENÉ MODRÉ POZADIE A PADDING pri animácii "Hľadám" */
+.searching-row .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: transparent; padding: 0; }
 .searching-bubble { background: var(--bot-msg-bg); border: 1px solid var(--bot-msg-border); color: var(--text-primary); padding: 10px 12px; border-radius: 14px; border-bottom-left-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 2px; }
 .typing-cursor { animation: blink 0.8s step-end infinite; }
 @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
@@ -162,7 +163,6 @@
   cursor: pointer; border: none; transition: all 0.3s ease; 
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
-/* Animácia "Ano" Tlačidla */
 .page-link-btn-yes { 
   background: #005b9f; color: #ffffff; 
   animation: gentlePulse 2s infinite; 
@@ -177,26 +177,8 @@
   box-shadow: 0 6px 12px rgba(0, 91, 159, 0.3);
   animation: none; 
 }
-/* "Ne" Tlačidlo */
 .page-link-btn-no { background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--bot-msg-border); }
 .page-link-btn-no:hover { background: var(--bot-msg-border); transform: translateY(-1px); }
-
-/* ============== Input Area ============== */
-.input-area { padding: 12px 16px; background: var(--panel-bg); border-top: 1px solid var(--bot-msg-border); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-#message-input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); font-size: 14px; outline: none; transition: border 0.2s; }
-#message-input:focus { border-color: #005b9f; }
-.send-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; color: #fff; background: #005b9f; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; }
-.send-btn:hover { background: #004a82; transform: scale(1.05); }
-.send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); }
-
-/* ============== Powered by Eniq ============== */
-.powered-by { padding: 8px; background: var(--panel-bg); text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid var(--bot-msg-border); }
-.powered-by a { color: var(--text-primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
-.powered-by a:hover { color: #005b9f; }
-
-/* Odkazy v texte bota */
-.chat-link { color: #0284c7; text-decoration: underline; font-weight: 500; word-break: break-word; }
-.chat-link:hover { color: #0369a1; }
 
 /* ============== Contact Form (Vložený priamo v chate) ============== */
 .contact-form-container {
@@ -219,3 +201,19 @@
 .cf-success {
   font-size: 13px; font-weight: 600; color: #10b981; text-align: center; padding: 10px;
 }
+
+/* ============== Input Area ============== */
+.input-area { padding: 12px 16px; background: var(--panel-bg); border-top: 1px solid var(--bot-msg-border); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+#message-input { flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); font-size: 14px; outline: none; transition: border 0.2s; }
+#message-input:focus { border-color: #005b9f; }
+.send-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer; color: #fff; background: #005b9f; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; }
+.send-btn:hover { background: #004a82; transform: scale(1.05); }
+.send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: scale(1); }
+
+/* ============== Powered by Eniq ============== */
+.powered-by { padding: 8px; background: var(--panel-bg); text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid var(--bot-msg-border); }
+.powered-by a { color: var(--text-primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+.powered-by a:hover { color: #005b9f; }
+
+.chat-link { color: #0284c7; text-decoration: underline; font-weight: 500; word-break: break-word; }
+.chat-link:hover { color: #0369a1; }
