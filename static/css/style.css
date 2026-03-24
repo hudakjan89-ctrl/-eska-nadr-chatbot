@@ -87,9 +87,8 @@
 .chat-header-title { 
   font-weight: 600; 
   font-size: 15px; 
-  line-height: 1.1;
-  /* TÝMTO ZDVIHNEŠ NADPIS VYŠŠIE O 3 PIXELY */
-  margin-top: -6px; 
+  position: relative; /* Odomkne možnosť hýbať prvkom nezávisle od flexboxu */
+  top: -4px; /* TÝMTO to posunieš hore. Ak chceš viac, daj -6px */
 }
 .chat-header-status { 
   margin-top: 0; /* Zmazaný pôvodný margin */
