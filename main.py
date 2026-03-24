@@ -11,12 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+# IMPORTY Z TVOJICH SÚBOROV
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
 from admin import router as admin_router
 from logger import log_message, log_event
 
-# Dal som ti sem tvoj kľúč ako zálohu, aby to už NIKDY nevyhodilo chybu s Bearer hlavičkou!
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
@@ -98,6 +98,7 @@ def detect_page_section(message: str) -> Optional[str]:
     return None
 
 async def update_database_task():
+    print("Sťahujem XML produkty...")
     products = await fetch_and_parse_xml()
     if products:
         upsert_products(products)
@@ -113,7 +114,7 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž RAG Bot is running", "version": "9.0 (Perfect Syntax)"}
+    return {"status": "Česká nádrž RAG Bot is running", "version": "9.1 (Custom Rules: Dotace & Naming)"}
 
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
@@ -129,7 +130,7 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "anthropic/claude-sonnet-4.6", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                json={"model": "anthropic/claude-3.5-sonnet", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
@@ -142,7 +143,6 @@ async def chat(request: ChatRequest):
     session_id = request.session_id or str(uuid.uuid4())
     if session_id not in sessions: sessions[session_id] = []
     
-    # Logovanie správy
     log_message(session_id, "user", request.message)
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
@@ -174,13 +174,14 @@ async def chat(request: ChatRequest):
         f"---------------------\n"
         f"{products_context}\n"
         f"---------------------\n"
-        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA:\n"
+        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA (ČTI POZORNĚ!):\n"
         "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti parametry (účel, objem, rozměry). Pokud je nevíš, ptej se! NIKDY nenabízej konkrétní produkt naslepo bez zjištění parametrů.\n"
         "2. KROK 2 (DOPORUČENÍ): Vyber nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Popiš ho, uveď cenu. ZÁKAZ: NIKDY nepiš odkaz přímo do věty jako text! Vždy na úplný konec své zprávy přidej skrytý tag s odkazem:[URL: zde_vloz_odkaz_z_databaze]\n"
         "3. KROK 3 (PRODEJ ALTERNATIVY): Pokud nenajdeš přesný produkt, ale najdeš podobnou alternativu, NEOMOUVEJ SE! Aktivně nabídni tuto alternativu a přidej tag s odkazem [URL:...].\n"
-        "4. KROK 4 (KONTAKT - LEAD GEN): Pokud má zákazník technický dotaz (usazení, jíl), na který neznáš přesnou odpověď z manuálu, IHNED ukonči prodej. Řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
-        "5. KROK 5 (NENALEZENO): Pokud seznam produktů nebo FAQ nedává smysl, nevymýšlej si! Omluv se a případně odkaž na kategorii.\n\n"
-        "PRAVIDLA:\n"
+        "4. KROK 4 (DOTACE DEŠŤOVKA - LEAD GEN): Pokud zákazník jakkoli zmíní dotaci, program Nová zelená úsporám nebo dotaci Dešťovka, IHNED zapomeň texty z manuálu. Odpověz PŘESNĚ: 'V podmínkách dotace Dešťovka došlo k důležitým změnám. Tyto změny vždy raději probíráme se zákazníky napřímo. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a náš specialista se vám ozve, aby s vámi probral aktuální možnosti.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n"
+        "5. KROK 5 (TECHNICKÝ DOTAZ): Pokud má zákazník jiný technický dotaz (např. usazení do jílu), na který neznáš odpověď, řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG:[SHOW_CONTACT_FORM]\n\n"
+        "ZÁKAZY A PRAVIDLA:\n"
+        "- SLOVNÍK: NIKDY neříkej, že nabízíme 'dešťovku' (např. 'Máme tu skvělou dešťovku'). Vždy použij profesionální výraz: 'nádrže na dešťovou vodu'.\n"
         "- Vystupuj jako asistent e-shopu. Nezmiňuj umělou inteligenci.\n"
         "- Nepoužívej hvězdičky (**) k formátování.\n"
         "- ZÁKAZ: Odkazy vkládej výhradně do tagu [URL: ...], nikdy jako prostý text.\n"
@@ -201,7 +202,7 @@ async def chat(request: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "anthropic/claude-3.5-sonnet", "messages": messages, "temperature": 0.2, "max_tokens": 600}
+                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 600}
             )
             
             if response.status_code != 200:
