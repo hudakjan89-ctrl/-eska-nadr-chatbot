@@ -39,6 +39,7 @@
   position: fixed; right: 20px; bottom: 20px;
   width: 150px; height: 150px; border-radius: 50%;
   background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+  border: 2px solid #005b9f !important; 
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 1000;
   animation: softBounce 3.2s ease-in-out infinite; transition: all 0.2s;
