@@ -5,11 +5,14 @@ import asyncio
 import unicodedata
 import re
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
@@ -20,6 +23,10 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "sk-or-v1-b834479f715cc5dc2
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(admin_router)
 
@@ -36,7 +43,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 sessions = {}
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=500)
     session_id: Optional[str] = None
     language: Optional[str] = "cs"
 
@@ -137,14 +144,19 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    session_id = request.session_id or str(uuid.uuid4())
+@limiter.limit("10/minute")
+async def chat(request: Request, chat_req: ChatRequest):
+    x_nadrz_token = request.headers.get("x-nadrz-token")
+    if x_nadrz_token != "nadrz-secure-2026":
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid Token")
+
+    session_id = chat_req.session_id or str(uuid.uuid4())
     if session_id not in sessions: sessions[session_id] = []
     
-    log_message(session_id, "user", request.message)
+    log_message(session_id, "user", chat_req.message)
     
-    optimized_query = await generate_optimized_search_query(sessions[session_id], request.message)
-    sessions[session_id].append({"role": "user", "content": request.message})
+    optimized_query = await generate_optimized_search_query(sessions[session_id], chat_req.message)
+    sessions[session_id].append({"role": "user", "content": chat_req.message})
     
     products_context = ""
     found_products = []
@@ -162,9 +174,9 @@ async def chat(request: ChatRequest):
         knowledge_context += f"--- TÉMA: {k['title']} ---\n{k['content']}\n\n"
 
     lang_instruction = "MUSÍŠ odpovídat striktně ČESKY."
-    if request.language == "sk": lang_instruction = "MUSÍŠ odpovedať striktne SLOVENSKY!"
-    elif request.language == "en": lang_instruction = "You MUST answer strictly in ENGLISH!"
-    elif request.language == "uk": lang_instruction = "Ти ПОВИНЕН відповідати строго УКРАЇНСЬКОЮ мовою!"
+    if chat_req.language == "sk": lang_instruction = "MUSÍŠ odpovedať striktne SLOVENSKY!"
+    elif chat_req.language == "en": lang_instruction = "You MUST answer strictly in ENGLISH!"
+    elif chat_req.language == "uk": lang_instruction = "Ти ПОВИНЕН відповідати строго УКРАЇНСЬКОЮ мовою!"
 
     system_prompt = (
         f"Jsi technický poradce a asistent e-shopu Česká nádrž. Tvůj tón je přátelský a vysoce odborný.\n\n"
@@ -216,7 +228,7 @@ async def chat(request: ChatRequest):
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
-            detected_url = detect_page_section(request.message) 
+            detected_url = detect_page_section(chat_req.message) 
             detected_image = None
             url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
             

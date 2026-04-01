@@ -272,7 +272,7 @@
     showSearching();
     try {
       const resp = await fetch(`${BASE_URL}/chat`, { 
-        method: "POST", headers: { "Content-Type": "application/json" }, 
+        method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
         body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }) 
       });
       const data = await resp.json(); 
