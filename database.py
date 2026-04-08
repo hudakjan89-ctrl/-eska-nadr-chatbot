@@ -41,7 +41,7 @@ def upsert_products(products):
     points =[]
     for prod in products:
         text_to_embed = f"Název: {prod['name']} Kategorie: {prod.get('category', '')} Popis: {prod.get('description', '')}"
-        vector = model.encode(text_to_embed).tolist()
+        vector = model.encode(text_to_embed, show_progress_bar=False).tolist()
         points.append(PointStruct(
             id=prod['id'],
             vector=vector,
@@ -53,7 +53,7 @@ def upsert_products(products):
 
 def search_products(query: str, top_k=10):
     if not collection_exists(COLLECTION_PRODUCTS): return[]
-    query_vector = model.encode(query).tolist()
+    query_vector = model.encode(query, show_progress_bar=False).tolist()
     hits = client.search(collection_name=COLLECTION_PRODUCTS, query_vector=query_vector, limit=top_k)
     return [hit.payload for hit in hits]
 
@@ -80,7 +80,7 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
         if title and body:
             # Spojíme nadpis a telo do jedného textu pre AI
             text_to_embed = f"Téma: {title}\nInformace: {body}"
-            vector = model.encode(text_to_embed).tolist()
+            vector = model.encode(text_to_embed, show_progress_bar=False).tolist()
             
             # Vytvoríme unikátne ID z názvu sekcie (aby sa pri reštarte nepridávali duplikáty)
             chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, title))
@@ -98,6 +98,6 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
 def search_knowledge(query: str, top_k=3):
     # Vyhľadá len 3 najrelevantnejšie odseky z manuálu (extrémne šetrenie tokenov!)
     if not collection_exists(COLLECTION_KNOWLEDGE): return[]
-    query_vector = model.encode(query).tolist()
+    query_vector = model.encode(query, show_progress_bar=False).tolist()
     hits = client.search(collection_name=COLLECTION_KNOWLEDGE, query_vector=query_vector, limit=top_k)
     return[hit.payload for hit in hits]
