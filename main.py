@@ -219,7 +219,7 @@ async def chat(request: Request, chat_req: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "anthropic/claude-3.5-sonnet", "messages": messages, "temperature": 0.2, "max_tokens": 600}
+                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 600}
             )
             
             if response.status_code != 200:
