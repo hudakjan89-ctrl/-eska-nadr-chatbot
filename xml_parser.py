@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import uuid
 import re
 import logging
+from alerter import fire_alert
 
 logger = logging.getLogger("ceska_nadrz.xml_parser")
 
@@ -68,5 +69,7 @@ async def fetch_and_parse_xml():
         return products
         
     except Exception as e:
-        logger.exception(f"Kritická chyba při stahování/parsování XML: {e}")
+        error_msg = f"Kritická chyba při stahování/parsování XML: {e}"
+        logger.exception(error_msg)
+        fire_alert(error_msg)
         return[]

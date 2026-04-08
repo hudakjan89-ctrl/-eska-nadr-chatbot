@@ -20,6 +20,7 @@ from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
 from admin import router as admin_router
 from logger import log_message, log_event
+from alerter import fire_alert
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -127,6 +128,7 @@ async def update_database_task():
         logger.info("Uloha update_database_task dokoncena uspesne.")
     except Exception as e:
         logger.exception("Kriticka chyba v opakovanej ulohe update_database_task!")
+        fire_alert(f"Zlyhal update_database_task feed!\nChyba: {str(e)}")
 
 @app.on_event("startup")
 async def startup_event():
@@ -285,5 +287,7 @@ async def chat(request: Request, chat_req: ChatRequest):
             )
             
     except Exception as e:
-        logger.exception(f"Error v endpointe /chat. Message: {chat_req.message}. Exception: {str(e)}")
+        error_msg = f"Error v endpointe /chat. Message: {chat_req.message}. Exception: {str(e)}"
+        logger.exception(error_msg)
+        fire_alert(error_msg)
         raise HTTPException(status_code=500, detail="Internal Server Error")
