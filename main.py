@@ -1,4 +1,6 @@
 import os
+import sys
+import logging
 import uuid
 import httpx
 import asyncio
@@ -18,6 +20,13 @@ from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
 from admin import router as admin_router
 from logger import log_message, log_event
+
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("ceska_nadrz.main")
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -104,17 +113,29 @@ def detect_page_section(message: str) -> Optional[str]:
     return None
 
 async def update_database_task():
-    products = await fetch_and_parse_xml()
-    if products:
-        upsert_products(products)
-    load_and_upsert_knowledge()
+    try:
+        logger.info("Vykonavam planovanu ulohu update_database_task...")
+        products = await fetch_and_parse_xml()
+        if products:
+            logger.info(f"Nacitanych {len(products)} produktov, ukladám do DB...")
+            upsert_products(products)
+        else:
+            logger.warning("Ziadne produkty stiahnute z XML (prazdny zoznam).")
+        
+        logger.info("Refreshujem knowledge base...")
+        load_and_upsert_knowledge()
+        logger.info("Uloha update_database_task dokoncena uspesne.")
+    except Exception as e:
+        logger.exception("Kriticka chyba v opakovanej ulohe update_database_task!")
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("Aplikacia startuje. Vykonava sa load_and_upsert_knowledge...")
     load_and_upsert_knowledge()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.start()
+    logger.info("Naplanovana uloha update_database_task (kazdych 6 hodin).")
     asyncio.create_task(update_database_task())
 
 @app.get("/")
@@ -264,5 +285,5 @@ async def chat(request: Request, chat_req: ChatRequest):
             )
             
     except Exception as e:
-        print(f"Error in /chat: {str(e)}")
+        logger.exception(f"Error v endpointe /chat. Message: {chat_req.message}. Exception: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

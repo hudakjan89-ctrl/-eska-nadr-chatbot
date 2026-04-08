@@ -89,10 +89,10 @@
   let typingInterval = null;
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný produkt. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfBtn: "Odeslat / Submit", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím všechna pole (Jméno, Email, Telefon)." },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný produkt. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfBtn: "Odoslať / Submit", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím všetky polia (Meno, Email, Telefón)." },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a suitable product. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfBtn: "Submit", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out all fields (Name, Email, Phone)." },
-    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідний продукт. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfBtn: "Надіслати", cfSuccess: "✔ Дані надіслано. Дякуємо!", cfErr: "Будь ласка, заповніть усі поля." }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný produkt. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat / Submit", cfSuccess: "✔ Údaje odeslány. Děkujeme!", cfErr: "Vyplňte prosím e-mail." },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný produkt. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať / Submit", cfSuccess: "✔ Údaje odoslané. Ďakujeme!", cfErr: "Vyplňte prosím e-mail." },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a suitable product. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Submit", cfSuccess: "✔ Submitted. Thank you!", cfErr: "Please fill out your email." },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідний продукт. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати", cfSuccess: "✔ Дані надіслано. Дякуємо!", cfErr: "Будь ласка, введіть e-mail." }
   };
 
   const QUICK_ACTIONS = {
@@ -103,10 +103,10 @@
   };
 
   const INSTANT_ANSWERS = {
-    cs: { guide: "Rád pomohu! Na co budete nádrž primárně potřebovat? (Nádrž na dešťovou vodu, jímka, septik?)", shipping: "Dopravu velkých nádrží máme po ČR ZDARMA! Platí se hotově u řidiče nebo převodem.", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 723 045 274." },
-    sk: { guide: "Rád pomôžem! Na čo budete nádrž primárne potrebovať? (Dažďová voda, žumpa, septik?)", shipping: "Dopravu veľkých nádrží máme po ČR ZDARMA! Platí sa v hotovosti u vodiča alebo prevodom.", contact: "Napíšte na obchod@ceskanadrz.cz alebo zavolajte na 723 045 274." },
-    en: { guide: "I'd be happy to help! What will you use the tank for primarily?", shipping: "We offer FREE shipping for large tanks within the CZ! Payment is via cash on delivery or bank transfer.", contact: "Email us at obchod@ceskanadrz.cz or call 723 045 274." },
-    uk: { guide: "З радістю допоможу! Для чого вам потрібен резервуар? (Дощова вода, вигрібна яма, септик?)", shipping: "Доставка великих резервуарів по Чехії БЕЗКОШТОВНА! Оплата готівкою водієві або переказом.", contact: "Напишіть на obchod@ceskanadrz.cz або зателефонуйте 723 045 274." }
+    cs: { guide: "Rád pomohu s výběrem. Co konkrétně řešíte? (např. jímka, nádrž na vodu, vsakovací systém, šachta na vrt…)", shipping: "Dopravu zajišťujeme po celé ČR.\n\nVelké nádrže rozvážíme vlastními vozy ZDARMA.\nPřed doručením vás kontaktujeme (cca 1–2 dny dopředu) a řidič volá ještě zhruba 30 minut před příjezdem.\nMenší zboží zasíláme kurýrní službou (např. Toptrans).\nO odeslání vás informujeme a doručení probíhá standardně následující pracovní den.\n\nPlatba je možná:\n- převodem předem\n- nebo hotově při převzetí (u řidiče / dopravce)", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 737 234 461. Případně vyplňte Váš e-mail, jméno, telefonní číslo a poznámku a my se Vám ozveme." },
+    sk: { guide: "Rád pomôžem s výberom. Čo konkrétne riešite? (napr. žumpa, nádrž na vodu, vsakovací systém, šachta na vrt…)", shipping: "Dopravu zabezpečujeme po celej ČR.\n\nVeľké nádrže rozvážame vlastnými vozidlami ZADARMO.\nPred doručením vás kontaktujeme (cca 1–2 dni vopred) a vodič volá ešte zhruba 30 minút pred príchodom.\nMenší tovar zasielame kuriérskou službou (napr. Toptrans).\nO odoslaní vás informujeme a doručenie prebieha štandardne nasledujúci pracovný deň.\n\nPlatba je možná:\n- prevodom vopred\n- alebo v hotovosti pri prevzatí (u vodiča / dopravcu)", contact: "Napíšte na obchod@ceskanadrz.cz alebo zavolajte na 737 234 461. Prípadne vyplňte Váš e-mail, meno, telefónne číslo a poznámku a my sa Vám ozveme." },
+    en: { guide: "I'd be happy to help you choose. What exactly are you looking for? (e.g., cesspool, water tank, infiltration system, borehole shaft...)", shipping: "We offer shipping throughout the Czech Republic.\n\nLarge tanks are delivered FREE of charge by our own vehicles.\nWe will contact you before delivery (approx. 1-2 days in advance) and the driver will call you about 30 minutes before arrival.\nSmaller goods are sent by courier service (e.g. Toptrans).\nWe will inform you about the dispatch and delivery standardly takes place the next working day.\n\nPayment is possible:\n- by bank transfer in advance\n- or in cash on delivery (to the driver / courier)", contact: "Email us at obchod@ceskanadrz.cz or call 737 234 461. Or fill out your email, name, phone number, and a note, and we will get back to you." },
+    uk: { guide: "З радістю допоможу з вибором. Що саме ви шукаєте? (наприклад, вигрібна яма, резервуар для води, інфільтраційна система, шахта для свердловини…)", shipping: "Ми забезпечуємо доставку по всій Чехії.\n\nВеликі резервуари доставляємо БЕЗКОШТОВНО власним транспортом.\nМи зв'яжемося з вами перед доставкою (приблизно за 1-2 дні), а водій зателефонує приблизно за 30 хвилин до прибуття.\nМенші товари відправляємо кур'єрською службою (наприклад, Toptrans).\nМи повідомимо вас про відправку, а доставка зазвичай відбувається наступного робочого дня.\n\nОплата можлива:\n- банківським переказом заздалегідь\n- або готівкою при доставці (водієві / кур'єру)", contact: "Напишіть на obchod@ceskanadrz.cz або зателефонуйте 737 234 461. Або введіть свій e-mail, ім'я, номер телефону та примітку, і ми зв'яжемося з вами." }
   };
 
   const panel = document.getElementById("chatPanel");
@@ -179,6 +179,7 @@
       <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
       <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
       <input type="tel" class="cf-input cf-phone" placeholder="${UI_TEXT[selectedLang].cfPhone}">
+      <textarea class="cf-input cf-note" placeholder="${UI_TEXT[selectedLang].cfNote}" rows="3" style="resize:vertical;"></textarea>
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); scrollToBottom();
@@ -188,13 +189,17 @@
       const fname = row.querySelector('.cf-fname').value.trim();
       const email = row.querySelector('.cf-email').value.trim();
       const phone = row.querySelector('.cf-phone').value.trim();
+      const note = row.querySelector('.cf-note').value.trim();
 
-      if (!fname || !email || !phone) { alert(UI_TEXT[selectedLang].cfErr); return; }
+      if (!email) { alert(UI_TEXT[selectedLang].cfErr); return; }
 
       row.innerHTML = `<div class="cf-success">${UI_TEXT[selectedLang].cfSuccess}</div>`;
-      const hiddenMessage = `Zákazník právě vyplnil kontaktní formulář (Jméno: ${fname}, Email: ${email}, Telefon: ${phone}). Poděkuj mu, řekni že to předáváš Petrovi a zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      const safeFname = fname || "Nevyplněno";
+      const safePhone = phone || "Nevyplněno";
+      const safeNote = note || "Žádná poznámka";
+      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni že to předáváš, zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
-      addMessage(`[Odeslán kontakt: ${fname}, ${email}, ${phone}]`, "user", false);
+      addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
       sendDirectMessageToAPI(hiddenMessage);
     });
   }
@@ -259,7 +264,11 @@
       const row = document.createElement("div"); row.className = `message bot`;
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
-      streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]);
+      streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]).then(() => {
+        if (actionBtn.dataset.action === "contact") {
+          renderContactForm();
+        }
+      });
     }
     
     if (linkBtn) {

@@ -1,10 +1,13 @@
 import os
 import uuid
+import logging
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
 
-print("Načítavam jazykový AI model (Qdrant)...")
+logger = logging.getLogger("ceska_nadrz.database")
+
+logger.info("Načítavam jazykový AI model (Qdrant)...")
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
 client = QdrantClient(path="./qdrant_db")
@@ -24,12 +27,12 @@ def collection_exists(coll_name):
 def init_db():
     # Inicializácia produktovej databázy
     if not collection_exists(COLLECTION_PRODUCTS):
-        print(f"Vytváram databázu: {COLLECTION_PRODUCTS}")
+        logger.info(f"Vytváram databázu: {COLLECTION_PRODUCTS}")
         client.create_collection(collection_name=COLLECTION_PRODUCTS, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
     
     # Inicializácia vedomostnej databázy
     if not collection_exists(COLLECTION_KNOWLEDGE):
-        print(f"Vytváram databázu: {COLLECTION_KNOWLEDGE}")
+        logger.info(f"Vytváram databázu: {COLLECTION_KNOWLEDGE}")
         client.create_collection(collection_name=COLLECTION_KNOWLEDGE, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
 
 # ================= PRODUKTY =================
@@ -46,7 +49,7 @@ def upsert_products(products):
         ))
     if points:
         client.upsert(collection_name=COLLECTION_PRODUCTS, points=points)
-        print(f"Úspešne aktualizovaných {len(points)} produktov v databáze.")
+        logger.info(f"Úspešne aktualizovaných {len(points)} produktov v databáze.")
 
 def search_products(query: str, top_k=10):
     if not collection_exists(COLLECTION_PRODUCTS): return[]
@@ -58,7 +61,7 @@ def search_products(query: str, top_k=10):
 def load_and_upsert_knowledge(filepath="knowledge_base.md"):
     init_db()
     if not os.path.exists(filepath):
-        print(f"Súbor {filepath} neexistuje. Vedomostná databáza sa nenačíta.")
+        logger.warning(f"Súbor {filepath} neexistuje. Vedomostná databáza sa nenačíta.")
         return
 
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -90,7 +93,7 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
             
     if points:
         client.upsert(collection_name=COLLECTION_KNOWLEDGE, points=points)
-        print(f"Úspešne rozsekaných a uložených {len(points)} informačných blokov z manuálu.")
+        logger.info(f"Úspešne rozsekaných a uložených {len(points)} informačných blokov z manuálu.")
 
 def search_knowledge(query: str, top_k=3):
     # Vyhľadá len 3 najrelevantnejšie odseky z manuálu (extrémne šetrenie tokenov!)

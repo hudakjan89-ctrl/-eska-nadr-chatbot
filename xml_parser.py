@@ -2,6 +2,9 @@ import httpx
 import xml.etree.ElementTree as ET
 import uuid
 import re
+import logging
+
+logger = logging.getLogger("ceska_nadrz.xml_parser")
 
 def get_product_id(url: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
@@ -15,7 +18,7 @@ def clean_html(raw_html: str) -> str:
 
 async def fetch_and_parse_xml():
     url = "https://www.ceskanadrz.cz/universal.xml"
-    print("Stahujem XML feed (Universal)...")
+    logger.info("Stahujem XML feed (Universal)...")
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=120.0)
@@ -61,9 +64,9 @@ async def fetch_and_parse_xml():
                     'category': cat.text.strip() if cat is not None and cat.text else ''
                 })
                 
-        print(f"Úspěšně staženo a připraveno {len(products)} produktů (včetně obrázků).")
+        logger.info(f"Úspěšně staženo a připraveno {len(products)} produktů (včetně obrázků).")
         return products
         
     except Exception as e:
-        print(f"Kritická chyba při stahování/parsování XML: {e}")
+        logger.exception(f"Kritická chyba při stahování/parsování XML: {e}")
         return[]
