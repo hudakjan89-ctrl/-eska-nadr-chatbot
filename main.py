@@ -21,6 +21,7 @@ from database import upsert_products, search_products, load_and_upsert_knowledge
 from admin import router as admin_router
 from logger import log_message, log_event
 from alerter import fire_alert
+from mailer import send_lead_email
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -181,6 +182,10 @@ async def chat(request: Request, chat_req: ChatRequest):
     optimized_query = await generate_optimized_search_query(sessions[session_id], chat_req.message)
     sessions[session_id].append({"role": "user", "content": chat_req.message})
     
+    # Detekce leadu (odeslaný aktivně nebo pasivně zachycený)
+    if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message or "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message:
+        send_lead_email(chat_req.message, sessions[session_id])
+    
     products_context = ""
     found_products = []
     if optimized_query != "NONE":
@@ -208,23 +213,15 @@ async def chat(request: Request, chat_req: ChatRequest):
         f"{products_context}\n"
         f"---------------------\n"
         "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA (ČTI POZORNĚ!):\n"
-        "1. KROK 1 (DOPTAZOVÁNÍ): Zjisti parametry (účel, objem, rozměry). NIKDY nenabízej produkt naslepo bez parametrů.\n"
-        "2. KROK 2 (DOPORUČENÍ): Vyber nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Popiš ho a uveď cenu. ZÁKAZ: NIKDY nepiš odkaz do věty jako text! Vždy na úplný konec zprávy přidej skrytý tag: [URL: zde_vloz_odkaz_z_databaze]\n"
-        "3. KROK 3 (PRODEJ ALTERNATIVY): Pokud nenajdeš přesný produkt, ale najdeš podobnou alternativu, NEOMOUVEJ SE! Aktivně nabídni tuto alternativu a přidej tag s odkazem [URL:...].\n"
+        "1. KROK 1 (RYCHLÉ DOPORUČENÍ): Zákazníka se nevyptávej sáhodlouze. Zjisti pouze to nejnutnější: účel (na co nádrž chce), orientační objem a umístění (zelená plocha, parkovací stání, spodní voda). Ihned jak tyto základní věci víš, BLESKOVĚ nabídni nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Nenatahuj zbytečně komunikaci.\n"
+        "2. KROK 2 (ZÁKAZY): Zákazníkovi NIKDY nenabízej dělení na více nádrží, ledaže by chtěl objem nad 20m3 a zeptal se sám. Nikdy ho nestraš, že od 5m3 potřebuje na usazení speciální techniku nebo bagr – naše nádrže lze usadit i ručně.\n"
+        "3. KROK 3 (PRODEJ ALTERNATIVY): Pokud chce produkt, který nevidíš ve svých nalezených produktech, ale vidíš něco velmi podobného, ihned nabídni tu alternativu! Pokud zákazník vznesl naprosto specifický požadavek (např. betonovou hranatou fialovou jímku s okýnkem) a v produktech to vůbec nemáš, ihned ho odkaž na poptávku na míru: 'Napište svůj požadavek nejlépe i s nákresem na obchod@ceskanadrz.cz, výroba na míru u nás není problém.'\n"
+        "4. KROK 4 (PŘIPOJENÍ ODKAZU): Pokud produkt doporučíš, VŽDY na úplný konec zprávy přidej skrytý tag: [URL: zde_vloz_odkaz_z_databaze]. Nikdy nedávej odkaz do prostého textu.\n"
+        "5. KROK 5 (DOTACE DEŠŤOVKA A DOTAZY): Pokud zazní 'Dotace Dešťovka' nebo 'Nová zelená úsporám', ihned sbírej kontakt: 'Dotace se často mění, zanechte mi kontakty (e-mail, telefon, jméno) a kolega se Vám ozve pro probrání možností.' -> Na úplný konec zprávy dej tag: [SHOW_CONTACT_FORM].\n"
         
-        "4. KROK 4 (ZMĚNA CHOVÁNÍ - DOTACE DEŠŤOVKA): \n"
-        "   - Jakmile se zákazník zeptá na dotaci Dešťovka nebo Nová zelená úsporám:\n"
-        "     ❌ NEODPOVÍDEJ KLASICKY a nedávej mu žádné informace o dotaci z naší firemní databáze (informace na webu nejsou aktuální, zůstávají tam jen kvůli SEO).\n"
-        "     ✅ OKAMŽITĚ sbírej kontakt (lead).\n"
-        "   - Řekni PŘESNĚ toto: 'V podmínkách dotace došlo k důležitým změnám. Protože aktuální informace je potřeba řešit vždy individuálně, zanechte mi prosím své Jméno, E-mail a Telefon. Náš specialista se vám brzy ozve, aby s vámi probral všechny aktuální možnosti dotace.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n"
-        
-        "5. KROK 5 (TECHNICKÝ DOTAZ): Pokud má zákazník technický dotaz (např. usazení), na který neznáš odpověď, řekni: 'S tímto technickým detailem vám nejlépe poradí náš specialista Petr Nováček. Zanechte mi prosím své Jméno, E-mail a Telefonní číslo a on se vám ozve.' -> NA ÚPLNÝ KONEC PŘIDEJ TAG: [SHOW_CONTACT_FORM]\n\n"
-        
-        "ZÁKAZY A SLOVNÍK:\n"
-        "- ❌ ZMĚNIT WORDING: Nepoužívat slovo 'Dešťovka' jako nabídku produktu/služby. Místo toho všude profesionálně používat termín 'Nádrže na dešťovou vodu'.\n"
-        "- Vystupuj jako asistent e-shopu. Nezmiňuj umělou inteligenci.\n"
-        "- Nepoužívej hvězdičky (**) k formátování.\n"
-        "- ZÁKAZ: Odkazy vkládej výhradně do tagu [URL: ...], nikdy jako prostý text.\n"
+        "ZÁKAZY A GRAFIKA:\n"
+        "- Grafika: Velmi důležité údaje (telefonní čísla, e-maily jako **obchod@ceskanadrz.cz**) formátuj VŽDY tučně použitím hvězdiček, aby v textu vizuálně vynikly.\n"
+        "- Skloňování a septiky: Nikdy netvrď, že samonosné septiky se musí betonovat (to je nesmysl, zvládají běžné podmínky v zemi bez obetonování). Dbej na perfektní slovosled a neskloňuj nepřirozeně.\n"
         f"- {lang_instruction}\n"
     )
     
@@ -272,7 +269,8 @@ async def chat(request: Request, chat_req: ChatRequest):
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
             
-            assistant_message = assistant_message.replace("**", "")
+            # Necháme hvězdičky pro markdown formátování zpráv:
+            # assistant_message = assistant_message.replace("**", "")
 
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
             

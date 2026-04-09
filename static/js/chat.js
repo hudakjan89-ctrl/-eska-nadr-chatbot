@@ -96,17 +96,17 @@
   };
 
   const QUICK_ACTIONS = {
-    cs:[ { key: "guide", label: "Pomoc s výběrem" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
-    sk:[ { key: "guide", label: "Pomoc s výberom" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
-    en:[ { key: "guide", label: "Help me choose" }, { key: "shipping", label: "Shipping & Payment" }, { key: "contact", label: "Contact" } ],
-    uk:[ { key: "guide", label: "Допомога у виборі" }, { key: "shipping", label: "Доставка та оплата" }, { key: "contact", label: "Контакти" } ]
+    cs:[ { key: "guide", label: "Pomoc s výběrem" }, { key: "question", label: "Mám dotaz" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
+    sk:[ { key: "guide", label: "Pomoc s výberom" }, { key: "question", label: "Mám dotaz" }, { key: "shipping", label: "Doprava a platba" }, { key: "contact", label: "Kontakt" } ],
+    en:[ { key: "guide", label: "Help me choose" }, { key: "question", label: "I have a question" }, { key: "shipping", label: "Shipping & Payment" }, { key: "contact", label: "Contact" } ],
+    uk:[ { key: "guide", label: "Допомога у виборі" }, { key: "question", label: "У мене є питання" }, { key: "shipping", label: "Доставка та оплата" }, { key: "contact", label: "Контакти" } ]
   };
 
   const INSTANT_ANSWERS = {
-    cs: { guide: "Rád pomohu s výběrem. Co konkrétně řešíte? (např. jímka, nádrž na vodu, vsakovací systém, šachta na vrt…)", shipping: "Dopravu zajišťujeme po celé ČR.\n\nVelké nádrže rozvážíme vlastními vozy ZDARMA.\nPřed doručením vás kontaktujeme (cca 1–2 dny dopředu) a řidič volá ještě zhruba 30 minut před příjezdem.\nMenší zboží zasíláme kurýrní službou (např. Toptrans).\nO odeslání vás informujeme a doručení probíhá standardně následující pracovní den.\n\nPlatba je možná:\n- převodem předem\n- nebo hotově při převzetí (u řidiče / dopravce)", contact: "Napište na obchod@ceskanadrz.cz nebo zavolejte na 737 234 461. Případně vyplňte Váš e-mail, jméno, telefonní číslo a poznámku a my se Vám ozveme." },
-    sk: { guide: "Rád pomôžem s výberom. Čo konkrétne riešite? (napr. žumpa, nádrž na vodu, vsakovací systém, šachta na vrt…)", shipping: "Dopravu zabezpečujeme po celej ČR.\n\nVeľké nádrže rozvážame vlastnými vozidlami ZADARMO.\nPred doručením vás kontaktujeme (cca 1–2 dni vopred) a vodič volá ešte zhruba 30 minút pred príchodom.\nMenší tovar zasielame kuriérskou službou (napr. Toptrans).\nO odoslaní vás informujeme a doručenie prebieha štandardne nasledujúci pracovný deň.\n\nPlatba je možná:\n- prevodom vopred\n- alebo v hotovosti pri prevzatí (u vodiča / dopravcu)", contact: "Napíšte na obchod@ceskanadrz.cz alebo zavolajte na 737 234 461. Prípadne vyplňte Váš e-mail, meno, telefónne číslo a poznámku a my sa Vám ozveme." },
-    en: { guide: "I'd be happy to help you choose. What exactly are you looking for? (e.g., cesspool, water tank, infiltration system, borehole shaft...)", shipping: "We offer shipping throughout the Czech Republic.\n\nLarge tanks are delivered FREE of charge by our own vehicles.\nWe will contact you before delivery (approx. 1-2 days in advance) and the driver will call you about 30 minutes before arrival.\nSmaller goods are sent by courier service (e.g. Toptrans).\nWe will inform you about the dispatch and delivery standardly takes place the next working day.\n\nPayment is possible:\n- by bank transfer in advance\n- or in cash on delivery (to the driver / courier)", contact: "Email us at obchod@ceskanadrz.cz or call 737 234 461. Or fill out your email, name, phone number, and a note, and we will get back to you." },
-    uk: { guide: "З радістю допоможу з вибором. Що саме ви шукаєте? (наприклад, вигрібна яма, резервуар для води, інфільтраційна система, шахта для свердловини…)", shipping: "Ми забезпечуємо доставку по всій Чехії.\n\nВеликі резервуари доставляємо БЕЗКОШТОВНО власним транспортом.\nМи зв'яжемося з вами перед доставкою (приблизно за 1-2 дні), а водій зателефонує приблизно за 30 хвилин до прибуття.\nМенші товари відправляємо кур'єрською службою (наприклад, Toptrans).\nМи повідомимо вас про відправку, а доставка зазвичай відбувається наступного робочого дня.\n\nОплата можлива:\n- банківським переказом заздалегідь\n- або готівкою при доставці (водієві / кур'єру)", contact: "Напишіть на obchod@ceskanadrz.cz або зателефонуйте 737 234 461. Або введіть свій e-mail, ім'я, номер телефону та примітку, і ми зв'яжемося з вами." }
+    cs: { guide: "Rád pomohu s výběrem. Co konkrétně řešíte? (např. nádrž na vodu, jímka, vsakovací systém, šachta na vrt nebo něco jiného?)", question: "Napište mi, co řešíte. Pokud bude potřeba, doptám se na pár detailů a doporučím řešení.", shipping: "Dopravu zajišťujeme po celé ČR.\n\nVelké nádrže rozvážíme vlastními vozy ZDARMA.\nPřed doručením vás kontaktujeme (cca 1–2 dny dopředu) a řidič volá ještě zhruba 30 minut před příjezdem.\nMenší zboží zasíláme kurýrní službou (např. Toptrans).\nO odeslání vás informujeme a doručení probíhá standardně následující pracovní den.\n\nPlatba je možná:\n- převodem předem\n- nebo hotově při převzetí (u řidiče / dopravce)", contact: "Napište na **obchod@ceskanadrz.cz** nebo zavolejte na **737 234 461**. Případně vyplňte Váš e-mail, jméno, telefonní číslo a poznámku a my se Vám ozveme.\n\nZanechte svůj kontakt níže:" },
+    sk: { guide: "Rád pomôžem s výberom. Čo konkrétne riešite? (napr. nádrž na vodu, žumpa, vsakovací systém, šachta na vrt alebo niečo iné?)", question: "Napíšte mi, čo riešite. Ak bude potrebné, spýtam sa na zopár detailov a odporučím riešenie.", shipping: "Dopravu zabezpečujeme po celej ČR.\n\nVeľké nádrže rozvážame vlastnými vozidlami ZADARMO.\nPred doručením vás kontaktujeme (cca 1–2 dni vopred) a vodič volá ešte zhruba 30 minút pred príchodom.\nMenší tovar zasielame kuriérskou službou (napr. Toptrans).\nO odoslaní vás informujeme a doručenie prebieha štandardne nasledujúci pracovný deň.\n\nPlatba je možná:\n- prevodom vopred\n- alebo v hotovosti pri prevzatí (u vodiča / dopravcu)", contact: "Napíšte na **obchod@ceskanadrz.cz** alebo zavolajte na **737 234 461**. Prípadne vyplňte Váš e-mail, meno, telefónne číslo a poznámku a my sa Vám ozveme.\n\nZanechajte svoj kontakt nižšie:" },
+    en: { guide: "I'd be happy to help you choose. What exactly are you looking for? (e.g., water tank, cesspool, infiltration system, borehole shaft or something else?)", question: "Write me what you need. If necessary, I will ask for a few details and recommend a solution.", shipping: "We offer shipping throughout the Czech Republic.\n\nLarge tanks are delivered FREE of charge by our own vehicles.\nWe will contact you before delivery (approx. 1-2 days in advance) and the driver will call you about 30 minutes before arrival.\nSmaller goods are sent by courier service (e.g. Toptrans).\nWe will inform you about the dispatch and delivery standardly takes place the next working day.\n\nPayment is possible:\n- by bank transfer in advance\n- or in cash on delivery (to the driver / courier)", contact: "Email us at **obchod@ceskanadrz.cz** or call **737 234 461**. Or fill out your email, name, phone number, and a note, and we will get back to you.\n\nLeave your contact below:" },
+    uk: { guide: "З радістю допоможу з вибором. Що саме ви шукаєте? (наприклад, резервуар для води, вигрібна яма, інфільтраційна система, шахта для свердловини чи щось інше?)", question: "Напишіть, що ви шукаєте. Якщо потрібно, я запитаю кілька деталей і порекомендую рішення.", shipping: "Ми забезпечуємо доставку по всій Чехії.\n\nВеликі резервуари доставляємо БЕЗКОШТОВНО власним транспортом.\nМи зв'яжемося з вами перед доставкою (приблизно за 1-2 дні), а водій зателефонує приблизно за 30 хвилин до прибуття.\nМенші товари відправляємо кур'єрською службою (наприклад, Toptrans).\nМи повідомимо вас про відправку, а доставка зазвичай відбувається наступного робочого дня.\n\nОплата можлива:\n- банківським переказом заздалегідь\n- або готівкою при доставці (водієві / кур'єру)", contact: "Напишіть на **obchod@ceskanadrz.cz** або зателефонуйте **737 234 461**. Або введіть свій e-mail, ім'я, номер телефону та примітку, і ми зв'яжемося з вами.\n\nЗалиште свій контакт нижче:" }
   };
 
   const panel = document.getElementById("chatPanel");
@@ -184,6 +184,24 @@
     `;
     chatBox.appendChild(row); scrollToBottom();
 
+    const emailInput = row.querySelector('.cf-email');
+    const fnameInput = row.querySelector('.cf-fname');
+    let passiveSent = false;
+    
+    // Pasivní sběr - při sjetí z pole email se zkusí potichu odeslat kontakt (pokud je tam aspon "@")
+    emailInput.addEventListener('blur', () => {
+      const email = emailInput.value.trim();
+      const fname = fnameInput.value.trim() || 'Nezadáno';
+      if (!passiveSent && email.includes('@') && email.includes('.')) {
+        passiveSent = true;
+        const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}. Toto je tiše odchycený nedokončený lead z rozkoukaného formuláře, nijak na něj neodpovídej, jen si ho ulož.`;
+        fetch(`${BASE_URL}/chat`, { 
+          method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
+          body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang }) 
+        }).catch(e => console.log('Passive track fail', e));
+      }
+    });
+
     const submitBtn = row.querySelector('.cf-submit-btn');
     submitBtn.addEventListener('click', () => {
       const fname = row.querySelector('.cf-fname').value.trim();
@@ -197,7 +215,7 @@
       const safeFname = fname || "Nevyplněno";
       const safePhone = phone || "Nevyplněno";
       const safeNote = note || "Žádná poznámka";
-      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni že to předáváš, zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni, že to předáváš, a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
       addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
       sendDirectMessageToAPI(hiddenMessage);
@@ -265,7 +283,7 @@
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); scrollToBottom();
       streamText(bubble, INSTANT_ANSWERS[selectedLang][actionBtn.dataset.action]).then(() => {
-        if (actionBtn.dataset.action === "contact") {
+        if (actionBtn.dataset.action === "contact" || actionBtn.dataset.action === "question") {
           renderContactForm();
         }
       });
