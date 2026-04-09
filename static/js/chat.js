@@ -138,7 +138,7 @@
   
   function formatText(text) { 
     if (!text) return "";
-    let formatted = text.replace(/\*\*/g, ""); 
+    let formatted = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     formatted = formatted.replace(urlRegex, '<a href="$1" target="_blank" class="chat-link">$1</a>');
     return formatted.replace(/\n/g, '<br>');
@@ -175,7 +175,14 @@
 
   function renderContactForm() {
     const row = document.createElement("div"); row.className = "contact-form-container";
+    
+    let cfHeaderTxt = "Zanechte nám svůj kontakt:";
+    if (selectedLang === "sk") cfHeaderTxt = "Zanechajte nám svoj kontakt:";
+    else if (selectedLang === "en") cfHeaderTxt = "Leave us your contact details:";
+    else if (selectedLang === "uk") cfHeaderTxt = "Залиште нам свої контактні дані:";
+
     row.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-base, #111827); font-size: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">👇 ${cfHeaderTxt}</div>
       <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
       <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
       <input type="tel" class="cf-input cf-phone" placeholder="${UI_TEXT[selectedLang].cfPhone}">
