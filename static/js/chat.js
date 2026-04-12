@@ -233,10 +233,10 @@
   
   function formatText(text) { 
     if (!text) return "";
-    let formatted = text.replace(/\\*\\*(.*?)\\*\\*/g, "<strong>$1</strong>"); 
-    const urlRegex = /(https?:\\/\\/[^\\s]+)/g;
+    let formatted = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"); 
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
     formatted = formatted.replace(urlRegex, '<a href="$1" target="_blank" class="chat-link">$1</a>');
-    return formatted.replace(/\\n/g, '<br>');
+    return formatted.replace(/\n/g, '<br>');
   }
 
   function showQuickActionsInChat() {
