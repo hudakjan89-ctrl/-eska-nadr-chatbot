@@ -252,9 +252,9 @@
     const row = document.createElement("div"); row.className = "page-link-prompt";
     let imgHtml = "";
     if (imageUrl) {
-        imgHtml = \`<div style="text-align: center; margin-bottom: 10px; background: transparent; padding: 0; border: none;">
-                      <img src="\${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
-                   </div>\`;
+        imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: transparent; padding: 0; border: none;">
+                      <img src="${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
+                   </div>`;
     }
     const text = document.createElement("div"); text.className = "page-link-text"; text.textContent = UI_TEXT[selectedLang].showOnPage;
     const buttons = document.createElement("div"); buttons.className = "page-link-buttons";
@@ -271,10 +271,10 @@
   // Funkce vytvoří jen lákavé CTA k formuláři
   function renderContactCTA(introText, placeholderText) {
     const row = document.createElement("div"); row.className = "message bot cta-block";
-    row.innerHTML = \`<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
-        <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">\${formatText(introText)}</div>
-        <button class="cta-contact-btn" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">\${UI_TEXT[selectedLang].ctaBtn}</button>
-    </div>\`;
+    row.innerHTML = `<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
+        <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">${formatText(introText)}</div>
+        <button class="cta-contact-btn" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">${UI_TEXT[selectedLang].ctaBtn}</button>
+    </div>`;
     chatBox.appendChild(row);
     scrollToBottom();
     
@@ -290,14 +290,14 @@
     let cfHeaderTxt = UI_TEXT[selectedLang].ctaHeader;
     let placeholderTxt = customPlaceholderText || UI_TEXT[selectedLang].cfNote;
 
-    row.innerHTML = \`
-      <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-base, #111827); font-size: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">👇 \${cfHeaderTxt}</div>
-      <input type="text" class="cf-input cf-fname" placeholder="\${UI_TEXT[selectedLang].cfFname}">
-      <input type="email" class="cf-input cf-email" placeholder="\${UI_TEXT[selectedLang].cfEmail}">
-      <input type="tel" class="cf-input cf-phone" placeholder="\${UI_TEXT[selectedLang].cfPhone}">
-      <textarea class="cf-input cf-note" placeholder="\${placeholderTxt}" rows="3" style="resize:vertical;"></textarea>
-      <button class="cf-submit-btn">\${UI_TEXT[selectedLang].cfBtn}</button>
-    \`;
+    row.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-base, #111827); font-size: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">👇 ${cfHeaderTxt}</div>
+      <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
+      <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
+      <input type="tel" class="cf-input cf-phone" placeholder="${UI_TEXT[selectedLang].cfPhone}">
+      <textarea class="cf-input cf-note" placeholder="${placeholderTxt}" rows="3" style="resize:vertical;"></textarea>
+      <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
+    `;
     chatBox.appendChild(row); 
     
     // Scrolujeme měkce k formluáři – jen at je vidět hlavička, nechceme schovat zbytek diskuse
@@ -312,8 +312,8 @@
       const fname = fnameInput.value.trim() || 'Nezadáno';
       if (!passiveSent && email.includes('@') && email.includes('.')) {
         passiveSent = true;
-        const msg = \`[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: \${email}, Jméno: \${fname}. Toto je tiše odchycený nedokončený lead z rozkoukaného formuláře, nijak na něj neodpovídej, jen si ho ulož.\`;
-        fetch(\`\${BASE_URL}/chat\`, { 
+        const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}. Toto je tiše odchycený nedokončený lead z rozkoukaného formuláře, nijak na něj neodpovídej, jen si ho ulož.`;
+        fetch(`${BASE_URL}/chat`, { 
           method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
           body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang }) 
         }).catch(e => console.log('Passive track fail', e));
@@ -330,17 +330,17 @@
       if (!email) { alert(UI_TEXT[selectedLang].cfErr); return; }
 
       let successText = UI_TEXT[selectedLang].cfSuccess.replace("{NAME}", fname || "");
-      row.innerHTML = \`<div class="cf-success" style="white-space: pre-wrap;">\${successText}</div>\`;
+      row.innerHTML = `<div class="cf-success" style="white-space: pre-wrap;">${successText}</div>`;
       
       const safeFname = fname || "Nevyplněno";
       const safePhone = phone || "Nevyplněno";
       const safeNote = note || "Žádná poznámka";
-      const hiddenMessage = \`[KONTAKTNÍ FORMULÁŘ] E-mail: \${email}, Jméno: \${safeFname}, Telefon: \${safePhone}, Poznámka: \${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni, že to předáváš, a zeptej se, s čím dalším mu teď můžeš pomoci.\`;
+      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni, že to předáváš, a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
-      addMessage(\`[Odeslán kontakt | E-mail: \${email}]\`, "user", false);
+      addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
       
       // Odesíláme potichu do botu
-      fetch(\`\${BASE_URL}/chat\`, { 
+      fetch(`${BASE_URL}/chat`, { 
           method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
           body: JSON.stringify({ message: hiddenMessage, session_id: sessionId, language: selectedLang }) 
       });
@@ -348,9 +348,9 @@
   }
 
   function addMessage(text, type, showActions = false) {
-    const row = document.createElement("div"); row.className = \`message \${type}\`;
+    const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
-      row.innerHTML = \`<div class="message-avatar"><img src="\${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>\`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); 
     chatBox.appendChild(row);
@@ -376,7 +376,7 @@
 
   function showSearching() {
     const row = document.createElement("div"); row.className = "searching-row";
-    row.innerHTML = \`<div class="message-avatar"><img src="\${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>\`;
+    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottom();
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
     typingInterval = setInterval(() => { if (index < text.length) { textEl.textContent += text[index++]; scrollToBottom(); } else clearInterval(typingInterval); }, 80);
@@ -419,8 +419,8 @@
       activeFlow = key;
       flowTurnCount = 0;
 
-      const row = document.createElement("div"); row.className = \`message bot\`;
-      row.innerHTML = \`<div class="message-avatar"><img src="\${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>\`;
+      const row = document.createElement("div"); row.className = `message bot`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); 
       
       streamText(bubble, INSTANT_ANSWERS[selectedLang][key]).then(() => {
@@ -441,7 +441,7 @@
   async function sendDirectMessageToAPI(messageText) {
     showSearching();
     try {
-      const resp = await fetch(\`\${BASE_URL}/chat\`, { 
+      const resp = await fetch(`${BASE_URL}/chat`, { 
         method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
         body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }) 
       });
@@ -449,8 +449,8 @@
       sessionId = data.session_id; localStorage.setItem("session_id", sessionId);
       hideSearching();
       
-      const row = document.createElement("div"); row.className = \`message bot\`;
-      row.innerHTML = \`<div class="message-avatar"><img src="\${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>\`;
+      const row = document.createElement("div"); row.className = `message bot`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row);
       
       await streamText(bubble, data.response);
