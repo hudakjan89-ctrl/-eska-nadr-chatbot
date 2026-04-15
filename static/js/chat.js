@@ -301,7 +301,8 @@
     chatBox.appendChild(row); 
     
     // Scrolujeme měkce k formluáři – jen at je vidět hlavička, nechceme schovat zbytek diskuse
-    row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    // Odstraněno automatické scrollování podle požadavku, aby uživateli neujel text zprávy.
+    // row.scrollIntoView({ behavior: 'smooth', block: 'end' });
 
     const emailInput = row.querySelector('.cf-email');
     const fnameInput = row.querySelector('.cf-fname');
@@ -434,7 +435,7 @@
     
     if (linkBtn) {
       if (linkBtn.classList.contains("page-link-btn-yes")) { window.open(linkBtn.dataset.url, '_blank') || (window.location.href = linkBtn.dataset.url); }
-      linkBtn.closest(".page-link-prompt").remove(); 
+      // Tlačidla necháváme navždy aktivní, nemažeme je ani nezakazujeme.
     }
   });
 
