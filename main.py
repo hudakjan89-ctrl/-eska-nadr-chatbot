@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
 from admin import router as admin_router
-from logger import log_message, log_event
+from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
 from mailer import send_lead_email
 
@@ -175,16 +175,60 @@ async def chat(request: Request, chat_req: ChatRequest):
         raise HTTPException(status_code=403, detail="Forbidden: Invalid Token")
 
     session_id = chat_req.session_id or str(uuid.uuid4())
-    if session_id not in sessions: sessions[session_id] = []
-    
-    log_message(session_id, "user", chat_req.message)
+    is_new_session = session_id not in sessions
+    if is_new_session:
+        sessions[session_id] = []
+    user_id_hash = build_user_hash(session_id)
+    user_message_id = str(uuid.uuid4())
+    bot_message_id = str(uuid.uuid4())
+
+    if is_new_session:
+        emit_event(
+            event_name="chat_started",
+            session_id=session_id,
+            user_id_hash=user_id_hash,
+            language=chat_req.language,
+            metadata={"source": "web_widget"}
+        )
     
     optimized_query = await generate_optimized_search_query(sessions[session_id], chat_req.message)
+    log_message(session_id, "user", chat_req.message)
+    emit_event(
+        event_name="message_user",
+        session_id=session_id,
+        message_id=user_message_id,
+        user_id_hash=user_id_hash,
+        language=chat_req.language,
+        metadata={
+            "length": len(chat_req.message),
+            "query_text": chat_req.message,
+            "optimized_query": optimized_query
+        }
+    )
+
     sessions[session_id].append({"role": "user", "content": chat_req.message})
     
     # Detekce leadu (odeslaný aktivně nebo pasivně zachycený)
     if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message or "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message:
         send_lead_email(chat_req.message, sessions[session_id])
+        if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message:
+            emit_event(
+                event_name="contact_submitted",
+                session_id=session_id,
+                message_id=user_message_id,
+                user_id_hash=user_id_hash,
+                language=chat_req.language,
+                metadata={"channel": "chat"}
+            )
+        if "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message:
+            emit_event(
+                event_name="contact_captured_passive",
+                session_id=session_id,
+                message_id=user_message_id,
+                user_id_hash=user_id_hash,
+                language=chat_req.language,
+                metadata={"channel": "chat"}
+            )
     
     products_context = ""
     found_products = []
@@ -256,7 +300,6 @@ async def chat(request: Request, chat_req: ChatRequest):
             
             if url_match:
                 log_event("product_recommendation")
-                
                 detected_url = url_match.group(1)
                 assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
                 
@@ -264,19 +307,60 @@ async def chat(request: Request, chat_req: ChatRequest):
                     if p.get('url') == detected_url:
                         detected_image = p.get('image_url')
                         break
+                emit_event(
+                    event_name="product_recommended",
+                    session_id=session_id,
+                    message_id=bot_message_id,
+                    user_id_hash=user_id_hash,
+                    language=chat_req.language,
+                    metadata={
+                        "url": detected_url,
+                        "image_url": detected_image,
+                        "optimized_query": optimized_query
+                    }
+                )
 
             show_form = False
             msg_lower = assistant_message.lower()
             if "[SHOW_CONTACT_FORM]" in assistant_message or "zanechte mi" in msg_lower or "formulář" in msg_lower:
                 show_form = True
                 assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
+                emit_event(
+                    event_name="contact_form_shown",
+                    session_id=session_id,
+                    message_id=bot_message_id,
+                    user_id_hash=user_id_hash,
+                    language=chat_req.language,
+                    metadata={"trigger": "assistant_response"}
+                )
             
             # Necháme hvězdičky pro markdown formátování zpráv:
             # assistant_message = assistant_message.replace("**", "")
 
             sessions[session_id].append({"role": "assistant", "content": assistant_message})
+            conversation_message_count = len(sessions[session_id])
+            if conversation_message_count <= 2:
+                length_bucket = "short"
+            elif conversation_message_count <= 6:
+                length_bucket = "medium"
+            else:
+                length_bucket = "long"
             
             log_message(session_id, "bot", assistant_message)
+            emit_event(
+                event_name="message_bot",
+                session_id=session_id,
+                message_id=bot_message_id,
+                user_id_hash=user_id_hash,
+                language=chat_req.language,
+                metadata={
+                    "length": len(assistant_message),
+                    "has_product_url": bool(detected_url),
+                    "show_contact_form": show_form,
+                    "conversation_message_count": conversation_message_count,
+                    "conversation_length_bucket": length_bucket
+                }
+            )
             
             return ChatResponse(
                 response=assistant_message, 
