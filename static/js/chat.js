@@ -123,6 +123,29 @@
     }
   }
 
+  async function ingestClientMessage(role, content, metadata = {}, eventName = null) {
+    try {
+      const sid = ensureSessionId();
+      await fetch(`${BASE_URL}/admin/messages/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sid,
+          role,
+          content,
+          language: selectedLang,
+          metadata: {
+            source: "widget_frontend",
+            ...metadata
+          },
+          event_name: eventName
+        })
+      });
+    } catch (e) {
+      console.log("Frontend message ingest failed:", e);
+    }
+  }
+
   const UI_TEXT = {
     cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:" },
     sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:" },
@@ -261,6 +284,11 @@
 
   // Globálne vypnutie auto-scrollu podľa požiadavky.
   const AUTO_SCROLL_ENABLED = false;
+  function preserveScrollPosition(prevTop) {
+    if (AUTO_SCROLL_ENABLED) return;
+    chatBox.scrollTop = prevTop;
+  }
+
   function scrollToBottom() {
     if (!AUTO_SCROLL_ENABLED) return;
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -276,17 +304,20 @@
 
   function showQuickActionsInChat() {
     if (quickActionsShown) return;
+    const prevTop = chatBox.scrollTop;
     const actionsRow = document.createElement("div"); actionsRow.className = "quick-actions-inline";
     QUICK_ACTIONS[selectedLang].forEach(item => {
       const btn = document.createElement("button"); btn.className = "quick-action-btn"; btn.dataset.action = item.key; btn.textContent = item.label; actionsRow.appendChild(btn);
     });
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
+    preserveScrollPosition(prevTop);
     emitFrontendEvent("quick_actions_shown", {
       actions: QUICK_ACTIONS[selectedLang].map(item => item.key)
     });
   }
 
   function showPageLinkButtons(pageUrl, imageUrl = null) {
+    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "page-link-prompt";
     let imgHtml = "";
     if (imageUrl) {
@@ -304,6 +335,7 @@
     row.appendChild(buttons);
     chatBox.appendChild(row); 
     scrollToBottom();
+    preserveScrollPosition(prevTop);
     emitFrontendEvent("page_link_prompt_shown", {
       page_url: pageUrl,
       has_image: Boolean(imageUrl)
@@ -312,6 +344,7 @@
 
   // Funkce vytvoří jen lákavé CTA k formuláři
   function renderContactCTA(introText, placeholderText) {
+    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "message bot cta-block";
     row.innerHTML = `<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
         <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">${formatText(introText)}</div>
@@ -319,17 +352,22 @@
     </div>`;
     chatBox.appendChild(row);
     scrollToBottom();
+    preserveScrollPosition(prevTop);
     emitFrontendEvent("contact_cta_shown", {
       active_flow: activeFlow || null
     });
     
     row.querySelector('.cta-contact-btn').addEventListener('click', () => {
+        emitFrontendEvent("contact_cta_clicked", {
+          active_flow: activeFlow || null
+        });
         row.remove();
         renderContactForm(placeholderText);
     });
   }
 
   function renderContactForm(customPlaceholderText) {
+    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "contact-form-container";
     
     let cfHeaderTxt = UI_TEXT[selectedLang].ctaHeader;
@@ -344,6 +382,7 @@
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); 
+    preserveScrollPosition(prevTop);
     emitFrontendEvent("contact_form_shown", {
       active_flow: activeFlow || null,
       placeholder: placeholderTxt
@@ -355,7 +394,28 @@
 
     const emailInput = row.querySelector('.cf-email');
     const fnameInput = row.querySelector('.cf-fname');
+    const phoneInput = row.querySelector('.cf-phone');
+    const noteInput = row.querySelector('.cf-note');
     let passiveSent = false;
+    let formInteractionLogged = false;
+
+    const logFormInteraction = (fieldName) => {
+      if (formInteractionLogged) return;
+      formInteractionLogged = true;
+      emitFrontendEvent("contact_form_interaction", {
+        first_field: fieldName,
+        active_flow: activeFlow || null
+      });
+    };
+
+    [fnameInput, emailInput, phoneInput, noteInput].forEach((field) => {
+      field.addEventListener('focus', () => {
+        logFormInteraction(field.className || "unknown");
+      });
+      field.addEventListener('click', () => {
+        logFormInteraction(field.className || "unknown");
+      });
+    });
     
     emailInput.addEventListener('blur', () => {
       const email = emailInput.value.trim();
@@ -388,6 +448,18 @@
       const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni, že to předáváš, a zeptej se, s čím dalším mu teď můžeš pomoci.`;
       
       addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
+      ingestClientMessage(
+        "user",
+        `[Odeslán kontakt | E-mail: ${email}]`,
+        {
+          channel: "contact_form",
+          has_name: fname.length > 0,
+          has_email: email.length > 0,
+          has_phone: phone.length > 0,
+          has_note: note.length > 0
+        },
+        "contact_submitted"
+      );
       
       // Odesíláme potichu do botu
       fetch(`${BASE_URL}/chat`, { 
@@ -398,24 +470,28 @@
   }
 
   function addMessage(text, type, showActions = false) {
+    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); 
     chatBox.appendChild(row);
+    preserveScrollPosition(prevTop);
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
     return row;
   }
 
   async function streamText(bubble, fullText) {
     let index = 0; let currentText = "";
+    const fixedTop = chatBox.scrollTop;
     
     // Auto-scroll je vypnutý globálne, nechávame pozíciu scrollu na užívateľovi.
 
     while (index < fullText.length) { 
       currentText += fullText.slice(index, index + 2); 
       bubble.innerHTML = formatText(currentText); 
+      preserveScrollPosition(fixedTop);
       index += 2; 
       // V rámci průběžného načítání neděláme tvrdý scrollToBottom(), obzvlášť pro extra dlouhé texty, 
       // aby zákazníkovi nezmizel vršek zprávy. Návštěvník si bude scrollovat sám.
@@ -424,11 +500,19 @@
   }
 
   function showSearching() {
+    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "searching-row";
     row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottom();
+    preserveScrollPosition(prevTop);
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
-    typingInterval = setInterval(() => { if (index < text.length) { textEl.textContent += text[index++]; scrollToBottom(); } else clearInterval(typingInterval); }, 80);
+    typingInterval = setInterval(() => {
+      if (index < text.length) {
+        textEl.textContent += text[index++];
+        scrollToBottom();
+        preserveScrollPosition(prevTop);
+      } else clearInterval(typingInterval);
+    }, 80);
   }
 
   function hideSearching() {
@@ -462,12 +546,14 @@
       isFirstMessage = false; 
       
       const key = actionBtn.dataset.action;
+      const quickText = actionBtn.textContent.trim();
       emitFrontendEvent("message_user", {
         action_key: key,
-        query_text: actionBtn.textContent.trim(),
+        query_text: quickText,
         channel: "quick_action"
       });
-      addMessage(actionBtn.textContent.trim(), "user", false);
+      addMessage(quickText, "user", false);
+      ingestClientMessage("user", quickText, { action_key: key, channel: "quick_action" }, "message_user");
       scrollToBottom();
       
       activeFlow = key;
@@ -477,13 +563,25 @@
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); 
       
-      streamText(bubble, INSTANT_ANSWERS[selectedLang][key]).then(() => {
+      const instantAnswer = INSTANT_ANSWERS[selectedLang][key];
+      streamText(bubble, instantAnswer).then(() => {
         emitFrontendEvent("message_bot", {
           action_key: key,
           channel: "quick_action",
           has_product_url: false,
           show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size"
         });
+        ingestClientMessage(
+          "bot",
+          instantAnswer,
+          {
+            action_key: key,
+            channel: "quick_action",
+            has_product_url: false,
+            show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size"
+          },
+          "message_bot"
+        );
         if (key === "shipping" || key === "installation" || key === "size") {
            renderContactCTA(CTA_TEXTS[selectedLang][key], FLOW_PLACEHOLDERS[selectedLang][key]);
         } else if (key === "contact") {

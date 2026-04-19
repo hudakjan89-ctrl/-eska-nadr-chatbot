@@ -5,6 +5,7 @@ import json
 from pydantic import BaseModel
 from typing import Optional, List, Union
 from logger import emit_event
+from logger import log_message
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -17,6 +18,14 @@ class EventIn(BaseModel):
     metadata: Optional[dict] = None
     timestamp: Optional[str] = None
     sync_status: Optional[str] = "synced"
+
+class ClientMessageIn(BaseModel):
+    session_id: str
+    role: str
+    content: str
+    language: Optional[str] = None
+    metadata: Optional[dict] = None
+    event_name: Optional[str] = None
 
 def _period_modifier(period: str) -> str:
     period_map = {
@@ -132,6 +141,26 @@ async def ingest_events(payload: Union[EventIn, List[EventIn]]):
             sync_status=event.sync_status or "synced"
         )
     return {"ingested": len(events), "status": "ok"}
+
+@router.post("/messages/ingest")
+async def ingest_messages(payload: Union[ClientMessageIn, List[ClientMessageIn]]):
+    messages = payload if isinstance(payload, list) else [payload]
+    for msg in messages:
+        role = msg.role.lower().strip()
+        if role not in ("user", "bot", "assistant"):
+            continue
+
+        normalized_role = "bot" if role == "assistant" else role
+        log_message(msg.session_id, normalized_role, msg.content)
+
+        emit_event(
+            event_name=msg.event_name or ("message_user" if normalized_role == "user" else "message_bot"),
+            session_id=msg.session_id,
+            language=msg.language,
+            metadata=msg.metadata or {}
+        )
+
+    return {"ingested": len(messages), "status": "ok"}
 
 @router.get("/analytics/summary")
 async def get_analytics_summary(period: str = "week"):
