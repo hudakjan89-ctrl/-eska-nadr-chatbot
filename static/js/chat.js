@@ -91,6 +91,38 @@
   let activeFlow = null;
   let flowTurnCount = 0;
 
+  function ensureSessionId() {
+    if (sessionId) return sessionId;
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      sessionId = window.crypto.randomUUID();
+    } else {
+      sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+    localStorage.setItem("session_id", sessionId);
+    return sessionId;
+  }
+
+  async function emitFrontendEvent(eventName, metadata = {}) {
+    try {
+      const sid = ensureSessionId();
+      await fetch(`${BASE_URL}/admin/events/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: eventName,
+          session_id: sid,
+          language: selectedLang,
+          metadata: {
+            source: "widget_frontend",
+            ...metadata
+          }
+        })
+      });
+    } catch (e) {
+      console.log("Frontend analytics event failed:", e);
+    }
+  }
+
   const UI_TEXT = {
     cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:" },
     sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:" },
@@ -227,8 +259,11 @@
     else { panel.classList.remove('dark-theme'); document.getElementById("themeToggle").classList.remove('active'); }
   }
 
-  function scrollToBottom() { 
-    chatBox.scrollTop = chatBox.scrollHeight; 
+  // Globálne vypnutie auto-scrollu podľa požiadavky.
+  const AUTO_SCROLL_ENABLED = false;
+  function scrollToBottom() {
+    if (!AUTO_SCROLL_ENABLED) return;
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
   
   function formatText(text) { 
@@ -246,6 +281,9 @@
       const btn = document.createElement("button"); btn.className = "quick-action-btn"; btn.dataset.action = item.key; btn.textContent = item.label; actionsRow.appendChild(btn);
     });
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
+    emitFrontendEvent("quick_actions_shown", {
+      actions: QUICK_ACTIONS[selectedLang].map(item => item.key)
+    });
   }
 
   function showPageLinkButtons(pageUrl, imageUrl = null) {
@@ -266,6 +304,10 @@
     row.appendChild(buttons);
     chatBox.appendChild(row); 
     scrollToBottom();
+    emitFrontendEvent("page_link_prompt_shown", {
+      page_url: pageUrl,
+      has_image: Boolean(imageUrl)
+    });
   }
 
   // Funkce vytvoří jen lákavé CTA k formuláři
@@ -277,6 +319,9 @@
     </div>`;
     chatBox.appendChild(row);
     scrollToBottom();
+    emitFrontendEvent("contact_cta_shown", {
+      active_flow: activeFlow || null
+    });
     
     row.querySelector('.cta-contact-btn').addEventListener('click', () => {
         row.remove();
@@ -299,6 +344,10 @@
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); 
+    emitFrontendEvent("contact_form_shown", {
+      active_flow: activeFlow || null,
+      placeholder: placeholderTxt
+    });
     
     // Scrolujeme měkce k formluáři – jen at je vidět hlavička, nechceme schovat zbytek diskuse
     // Odstraněno automatické scrollování podle požadavku, aby uživateli neujel text zprávy.
@@ -362,8 +411,7 @@
   async function streamText(bubble, fullText) {
     let index = 0; let currentText = "";
     
-    // Na začátku scrollneme na tuto bublinu at je aspon vidět
-    try { bubble.closest('.message').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e){}
+    // Auto-scroll je vypnutý globálne, nechávame pozíciu scrollu na užívateľovi.
 
     while (index < fullText.length) { 
       currentText += fullText.slice(index, index + 2); 
@@ -414,6 +462,11 @@
       isFirstMessage = false; 
       
       const key = actionBtn.dataset.action;
+      emitFrontendEvent("message_user", {
+        action_key: key,
+        query_text: actionBtn.textContent.trim(),
+        channel: "quick_action"
+      });
       addMessage(actionBtn.textContent.trim(), "user", false);
       scrollToBottom();
       
@@ -425,6 +478,12 @@
       const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); 
       
       streamText(bubble, INSTANT_ANSWERS[selectedLang][key]).then(() => {
+        emitFrontendEvent("message_bot", {
+          action_key: key,
+          channel: "quick_action",
+          has_product_url: false,
+          show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size"
+        });
         if (key === "shipping" || key === "installation" || key === "size") {
            renderContactCTA(CTA_TEXTS[selectedLang][key], FLOW_PLACEHOLDERS[selectedLang][key]);
         } else if (key === "contact") {
@@ -434,7 +493,12 @@
     }
     
     if (linkBtn) {
-      if (linkBtn.classList.contains("page-link-btn-yes")) { window.open(linkBtn.dataset.url, '_blank') || (window.location.href = linkBtn.dataset.url); }
+      if (linkBtn.classList.contains("page-link-btn-yes")) {
+        emitFrontendEvent("page_link_clicked_yes", { page_url: linkBtn.dataset.url });
+        window.open(linkBtn.dataset.url, '_blank') || (window.location.href = linkBtn.dataset.url);
+      } else {
+        emitFrontendEvent("page_link_clicked_no", {});
+      }
       // Tlačidla necháváme navždy aktivní, nemažeme je ani nezakazujeme.
     }
   });
@@ -478,6 +542,7 @@
 
   async function sendMessage() {
     const userText = input.value.trim(); if (!userText) return;
+    ensureSessionId();
     sendBtn.disabled = true; input.value = ""; isFirstMessage = false;
     
     addMessage(userText, "user", false); 
