@@ -862,7 +862,7 @@
 - Septik je zařízení pro mechanické předčištění odpadní vody. Na rozdíl od jímky má odtok – voda ze septiku odtéká dál.
 - Princip: voda protéká několika komorami; dochází k usazování pevných částic; probíhá částečný anaerobní rozklad.
 - Samotný septik však většinou nesplňuje požadavky na kvalitu vypouštěné vody. Proto se běžně doplňuje o další stupeň čištění.
-- Septik + filtr: Nejčastější kombinace. Voda ze septiku: odtéká do filtračního zařízení (např. pískový filtr); dochází k biologickému dočištění; následně může být vypouštěna dle povolení.
+- Septik + filtr: Nejčastější kombinace. Voda ze septiku: odtéká do filtračního zařízení (např. pískový filtr); dochází k biologickému dočištění; následně může být vypouštěna dle povolení. Správně navržený septik doplněný o vhodný filtr (např. zemní pískový filtr) umožňuje vypouštění vyčištěné vody jak do vsaku, tak do vodoteče, pokud to schválí příslušný vodoprávní úřad.
 - Výhody: jednoduchý a robustní systém; bez potřeby elektřiny; vysoká funkčnost i při nepravidelném zatížení; velmi vhodné řešení pro rekreační objekty.
 - Nevýhody: potřeba dostatečného prostoru; nutnost pravidelného odvozu kalu (cca 1× ročně); ne všude splní přísné požadavky na kvalitu vypouštěné vody.
 
@@ -999,9 +999,7 @@
 ### 22.2 Kvalita vody z ČOV (plný text)
 - Při správném návrhu a provozu je vyčištěná voda vhodná: pro vypouštění do vodoteče (dle povolení); pro vsakování do podzemních vod; pro další technické využití dle místních podmínek.
 - Kvalita odtoku je závislá na: správném dimenzování; pravidelném provozu; dodržení servisních intervalů.
-- Námi dodávané ČOV s technologií USBF jsou vyráběny a certifikovány v souladu s normou: ČSN EN 12566-3 (malé čistírny odpadních vod do 50 EO).
-- Konstrukce a provoz zařízení umožňují plnění požadavků: Nařízení vlády č. 401/2015 Sb.; Nařízení vlády č. 57/2016 Sb.
-- Důležité: Samotná technologie může splňovat normy, ale konečné povolení vždy závisí na místních podmínkách a rozhodnutí úřadu.
+- Námi dodávané ČOV s technologií USBF jsou vyráběny a certifikovány podle platných evropských norem pro malé čistírny odpadních vod. Technologie je navržena tak, aby splňovala běžné české legislativní požadavky na kvalitu vypouštěné vody. Konkrétní podmínky, limity i schválení vypouštění však vždy záleží na rozhodnutí místního vodoprávního úřadu — technické parametry zařízení samy o sobě automaticky nezaručují povolení v konkrétní lokalitě.
 
 ### 22.3 Výpadek elektřiny a ČOV (plný text)
 - Krátkodobý výpadek (hodiny až jednotky dní): biologický proces se zpomalí; konstrukčně se nic nepoškodí.

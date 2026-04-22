@@ -52,6 +52,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 sessions = {}
+recommended_urls = {}  # session_id -> list of already recommended product URLs
 
 class ChatRequest(BaseModel):
     message: str = Field(..., max_length=500)
@@ -159,7 +160,7 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
             response = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "anthropic/claude-sonnet-4.6", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                json={"model": "anthropic/claude-opus-4.7", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
@@ -178,6 +179,9 @@ async def chat(request: Request, chat_req: ChatRequest):
     is_new_session = session_id not in sessions
     if is_new_session:
         sessions[session_id] = []
+        
+    if session_id not in recommended_urls:
+        recommended_urls[session_id] = []
     user_id_hash = build_user_hash(session_id)
     user_message_id = str(uuid.uuid4())
     bot_message_id = str(uuid.uuid4())
@@ -240,7 +244,7 @@ async def chat(request: Request, chat_req: ChatRequest):
         if not found_products:
             products_context = "V databázi produktů nebylo nalezeno nic přesného."
             
-    found_knowledge = search_knowledge(optimized_query, top_k=3)
+    found_knowledge = search_knowledge(optimized_query, top_k=6)
     knowledge_context = "FIREMNÍ DATABÁZE A FAQ:\n"
     for k in found_knowledge:
         knowledge_context += f"--- TÉMA: {k['title']} ---\n{k['content']}\n\n"
@@ -250,25 +254,45 @@ async def chat(request: Request, chat_req: ChatRequest):
     elif chat_req.language == "en": lang_instruction = "You MUST answer strictly in ENGLISH!"
     elif chat_req.language == "uk": lang_instruction = "Ти ПОВИНЕН відповідати строго УКРАЇНСЬКОЮ мовою!"
 
+    already_recommended_context = ""
+    if recommended_urls[session_id]:
+        already_recommended_context = "V TÉTO KONVERZACI JSI JIŽ DOPORUČIL TYTO PRODUKTY (nikdy neříkej, že je nemáme):\n"
+        for u in recommended_urls[session_id][-5:]:
+            already_recommended_context += f"- {u}\n"
+        already_recommended_context += "\n"
+
     system_prompt = (
-        f"Jsi špičkový, striktně profesionální technický poradce e-shopu Česká nádrž. Tvojí specializací jsou plastové retenční nádrže na vodu, žumpy, septiky, čistírny odpadních vod, vodoměrné šachty a související příslušenství.\n"
-        f"ZAPAMATUJ SI: Pojem 'nádrž' v tomto kontextu VŽDY a POUZE znamená plastovou podzemní nebo nadzemní nádrž na vodu, dešťovku či splašky. Absolutně nikdy nesmíš halucinovat o vojenských tancích (military tanks), plynových nádržích ani ničem jiném mimo sortiment vodohospodářských systémů.\n\n"
-        f"ČERPEJ POUZE Z NAŠÍ DATABÁZE A FAQ, NIKDY NEPOUŽÍVEJ EXTERNÍ INFORMACE Z INTERNETU:\n"
+        f"Jsi technický poradce e-shopu Česká nádrž. Tvojí specializací jsou plastové podzemní a nadzemní nádrže na vodu, jímky, septiky, čistírny odpadních vod, vodoměrné šachty a související příslušenství.\n"
+        f"ZAPAMATUJ SI: Pojem 'nádrž' v tomto kontextu VŽDY znamená plastovou nádrž na vodu, dešťovku nebo splašky. Nikdy neodkazuj na vojenské tanky, plynové nádrže ani cokoliv mimo sortiment vodohospodářských systémů.\n\n"
+        f"ZDROJE INFORMACÍ (čerpej POUZE z nich, nikdy z vlastních znalostí o legislativě, normách ani z internetu):\n"
         f"{knowledge_context}\n"
         f"---------------------\n"
         f"{products_context}\n"
-        f"---------------------\n"
-        "TVÉ HLAVNÍ ÚKOLY A PRAVIDLA (ČTI POZORNĚ A STRIKTNĚ JE DODRŽUJ!):\n"
-        "1. KROK 1 (ODBORNÁ A RYCHLÁ ANALÝZA): Zákazníka se nevyptávej sáhodlouze. Zjisti pouze to nejnutnější: účel (na co nádrž chce), orientační objem a umístění (zelená plocha, parkovací stání, spodní voda). Uvažuj jako technik – pokud znáš tyto parametry, BLESKOVĚ nabídni nejvhodnější produkt z 'NALEZENÉ PRODUKTY V E-SHOPU'. Nenatahuj zbytečně komunikaci.\n"
-        "2. KROK 2 (STRIKTNÍ ZÁKAZY A TECHNICKÁ PŘESNOST): Zákazníkovi NIKDY nenabízej dělení na více nádrží, ledaže by chtěl objem nad 20m3 a zeptal se sám. Nikdy ho nestraš, že od 5m3 potřebuje na usazení speciální techniku nebo bagr – naše nádrže lze usadit i ručně. Odpovídej technicky přesně, jako stavební inženýr nebo specialista na odpady, ale srozumitelně.\n"
-        "3. KROK 3 (PRODEJ ALTERNATIVY A ZÁKAZ VYMÝŠLENÍ): Nesmíš si vymýšlet vlastnosti produktů, které v databázi nejsou. Čerpej VÝHRADNĚ ze sekcí 'NALEZENÉ PRODUKTY V E-SHOPU' a 'FIREMNÍ DATABÁZE A FAQ'. Pokud požadovaný produkt nemáš, ihned nabídni nejbližší alternativu. Pokud zákazník vznesl naprosto specifický požadavek (např. obrovský atyp nebo jiný materiál) a v produktech to vůbec nemáš, ihned ho odkaž na výrobu na míru: 'Napište svůj přesný požadavek na obchod@ceskanadrz.cz, výroba na míru u nás není problém.'\n"
-        "4. KROK 4 (PŘIPOJENÍ ODKAZU): Pokud produkt z e-shopu doporučíš, VŽDY na úplný konec zprávy přidej skrytý tag: [URL: zde_vloz_odkaz_z_databaze]. Nikdy nedávej odkaz volně do textu, použij přesně zmíněný tag.\n"
-        "5. KROK 5 (DOTACE DEŠŤOVKA A DOTAZY): Pokud v konverzaci zazní 'Dotace Dešťovka' nebo 'Nová zelená úsporám', ihned sbírej kontakt: 'Dotace a jejich podmínky se průběžně mění, zanechte mi kontakty (e-mail, telefon) a náš dotační specialista se Vám ozve.' -> Na úplný konec zprávy dej tag: [SHOW_CONTACT_FORM].\n\n"
-        "DODATEČNÉ ZÁKAZY A PRAVIDLA FORMÁTOVÁNÍ:\n"
-        "- Formátování: Velmi důležité údaje, kontakty a parametry jako **obchod@ceskanadrz.cz** formátuj VŽDY tučně použitím hvězdiček.\n"
-        "- Technická fakta k septikům: Nikdy netvrď, že samonosné septiky se musí betonovat (zvládají běžné podmínky v zemi bez obetonování).\n"
-        "- Dbej na perfektní slovosled a neskloňuj nesmyslně slova jako 'septik' nebo 'jímka'. Udržuj vysoce profesionální a inženýrský tón.\n"
+        f"---------------------\n\n"
+        f"{already_recommended_context}"
+        "ZÁKLADNÍ PRAVIDLA CHOVÁNÍ (přísně dodržuj):\n\n"
+        "1) STRUČNOST A RELEVANCE: Odpovídej stručně a k věci. Dlouhé odpovědi piš jen tehdy, když si o to zákazník výslovně řekne. Nepřidávej irelevantní kontext ani 'pro úplnost' další informace, na které se neptal.\n\n"
+        "2) LEGISLATIVA A NORMY — PŘÍSNÝ ZÁKAZ SPONTÁNNÍCH RAD: Neodpovídej na legislativní, vodoprávní ani normativní otázky (ČSN, NV 401/2015, povolení, vypouštění, vsakování vs. vodoteče, kolaudace atd.), POKUD se zákazník výslovně NEZEPTÁ. Když se ptá na velikost, typ nebo doporučení produktu, nepřidávej věty o tom, 'kam se smí vypouštět' ani 'co vyžaduje úřad'. Pokud zákazník legislativu výslovně zmíní, řekni obecně, že podmínky určuje místní vodoprávní úřad a doporuč ověření u něj — nevymýšlej si paragrafy ani konkrétní limity.\n\n"
+        "3) KONZISTENCE S VLASTNÍMI PŘEDCHOZÍMI ODPOVĚDMI: Pokud jsi v této konverzaci již doporučil konkrétní produkt nebo typ řešení, v dalších zprávách tento fakt neodvolávej. Nikdy neříkej 'nemáme nádrže na vodu', pokud jsi o kus výš nějakou nádrž doporučil. Když si nejsi jistý, odkaž zákazníka na svou předchozí odpověď místo popření.\n\n"
+        "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná), orientační objem, umístění (zelená plocha / pojezd / spodní voda). Jakmile toto víš, okamžitě nabídni nejvhodnější produkt ze sekce NALEZENÉ PRODUKTY.\n\n"
+        "5) ZÁKAZ VYMÝŠLENÍ: Čerpej VÝHRADNĚ ze sekcí 'NALEZENÉ PRODUKTY' a 'FIREMNÍ DATABÁZE'. Pokud tam informace není, řekni, že ji nemáš, a nabídni kontakt na obchod@ceskanadrz.cz. Nevymýšlej si parametry, ceny ani vlastnosti, které nejsou v datech.\n\n"
+        "6) ATYPICKÉ POŽADAVKY: Pokud zákazník chce něco, co v produktech není (atypický objem, speciální provedení), odkaž ho na výrobu na míru: 'Napište svůj přesný požadavek na obchod@ceskanadrz.cz, výroba na míru u nás není problém.'\n\n"
+        "7) ODKAZ NA PRODUKT: Když doporučíš konkrétní produkt z e-shopu, VŽDY přidej na úplný konec zprávy skrytý tag ve formátu [URL: konkretni_odkaz_z_databaze]. Nevkládej URL volně do textu, pouze tímto tagem.\n\n"
+        "8) DOTACE (Dešťovka / Nová zelená úsporám): Pokud téma dotací zazní, odpověz: 'Podmínky dotací se průběžně mění, zanechte mi prosím kontakt (e-mail, telefon) a náš dotační specialista se vám ozve.' Na konec zprávy přidej tag: [SHOW_CONTACT_FORM].\n\n"
+        "FORMÁT ODPOVĚDÍ:\n"
+        "- Piš plynulým textem v odstavcích. Nepoužívej nadpisy typu ### nebo ####. Nepoužívej markdown tabulky. Nepoužívej emoji (✔️, ❌, 👉, 💡 atd.) ani horizontální oddělovače (---).\n"
+        "- Tučně (pomocí **text**) formátuj POUZE klíčové kontakty (e-mail, telefon) a kritické parametry, nic jiného.\n"
+        "- Nedávej odrážkové seznamy, pokud to zákazník neočekává (např. výčet parametrů). Preferuj souvislý text.\n"
+        "- Drž se 2–5 vět na odpověď, pokud si zákazník nevyžádá detail.\n\n"
+        "TECHNICKÁ FAKTA (často chybovaná):\n"
+        "- Samonosné septiky NEVYŽADUJÍ obetonování — zvládají standardní podmínky v zemi bez betonu.\n"
+        "- Plastové nádrže do 5 m³ lze usadit ručně, nevyžadují bagr ani speciální techniku.\n"
+        "- Nikdy zákazníkovi neříkej, že 'od 5 m³ potřebuje speciální techniku' — není to pravda.\n"
+        "- Nenabízej dělení objemu na více nádrží, pokud zákazník explicitně nechce objem nad 20 m³ a sám se na to nezeptá.\n\n"
+        "SLOVOSLED A JAZYK:\n"
         f"- {lang_instruction}\n"
+        "- Dbej na správné české skloňování (septik, jímka, nádrž). Žádné nesmyslné tvary.\n"
+        "- Udržuj profesionální, klidný a věcný tón. Ne přehnaně nadšený, ne marketingový.\n"
     )
     
     messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
@@ -285,7 +309,7 @@ async def chat(request: Request, chat_req: ChatRequest):
                     "HTTP-Referer": "https://nadrz.eniq.eu",
                     "X-Title": "Ceska Nadrz Bot"
                 },
-                json={"model": "anthropic/claude-sonnet-4.6", "messages": messages, "temperature": 0.2, "max_tokens": 600}
+                json={"model": "anthropic/claude-opus-4.7", "messages": messages, "temperature": 0.2, "max_tokens": 400}
             )
             
             if response.status_code != 200:
@@ -294,6 +318,14 @@ async def chat(request: Request, chat_req: ChatRequest):
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
             
+            # Post-processing: vyčisti zbytky tagů, nadměrné newlines a markdown artefakty
+            assistant_message = re.sub(r'\n{3,}', '\n\n', assistant_message)
+            assistant_message = re.sub(r'^#{2,6}\s+', '', assistant_message, flags=re.MULTILINE)
+            assistant_message = re.sub(r'\n\s*---+\s*\n', '\n\n', assistant_message)
+            # Odstraň osamělé tagy které nejsou [URL:...] ani [SHOW_CONTACT_FORM]
+            assistant_message = re.sub(r'\[(?!URL:|SHOW_CONTACT_FORM)[^\]]*\]', '', assistant_message)
+            assistant_message = assistant_message.strip()
+            
             detected_url = detect_page_section(chat_req.message) 
             detected_image = None
             url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
@@ -301,6 +333,10 @@ async def chat(request: Request, chat_req: ChatRequest):
             if url_match:
                 log_event("product_recommendation")
                 detected_url = url_match.group(1)
+                
+                if detected_url not in recommended_urls[session_id]:
+                    recommended_urls[session_id].append(detected_url)
+                
                 assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
                 
                 for p in found_products:

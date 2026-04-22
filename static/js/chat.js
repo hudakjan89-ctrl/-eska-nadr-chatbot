@@ -282,16 +282,16 @@
     else { panel.classList.remove('dark-theme'); document.getElementById("themeToggle").classList.remove('active'); }
   }
 
-  // Globálne vypnutie auto-scrollu podľa požiadavky.
-  const AUTO_SCROLL_ENABLED = false;
-  function preserveScrollPosition(prevTop) {
-    if (AUTO_SCROLL_ENABLED) return;
-    chatBox.scrollTop = prevTop;
+  function scrollToBottom() {
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  function scrollToBottom() {
-    if (!AUTO_SCROLL_ENABLED) return;
-    chatBox.scrollTop = chatBox.scrollHeight;
+  function isNearBottom(threshold = 150) {
+    return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < threshold;
+  }
+
+  function scrollToBottomIfNear() {
+    if (isNearBottom()) scrollToBottom();
   }
   
   function formatText(text) { 
@@ -304,20 +304,17 @@
 
   function showQuickActionsInChat() {
     if (quickActionsShown) return;
-    const prevTop = chatBox.scrollTop;
     const actionsRow = document.createElement("div"); actionsRow.className = "quick-actions-inline";
     QUICK_ACTIONS[selectedLang].forEach(item => {
       const btn = document.createElement("button"); btn.className = "quick-action-btn"; btn.dataset.action = item.key; btn.textContent = item.label; actionsRow.appendChild(btn);
     });
-    chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottom();
-    preserveScrollPosition(prevTop);
+    chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottomIfNear();
     emitFrontendEvent("quick_actions_shown", {
       actions: QUICK_ACTIONS[selectedLang].map(item => item.key)
     });
   }
 
   function showPageLinkButtons(pageUrl, imageUrl = null) {
-    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "page-link-prompt";
     let imgHtml = "";
     if (imageUrl) {
@@ -334,8 +331,7 @@
     row.appendChild(text); 
     row.appendChild(buttons);
     chatBox.appendChild(row); 
-    scrollToBottom();
-    preserveScrollPosition(prevTop);
+    scrollToBottomIfNear();
     emitFrontendEvent("page_link_prompt_shown", {
       page_url: pageUrl,
       has_image: Boolean(imageUrl)
@@ -344,15 +340,13 @@
 
   // Funkce vytvoří jen lákavé CTA k formuláři
   function renderContactCTA(introText, placeholderText) {
-    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "message bot cta-block";
     row.innerHTML = `<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
         <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">${formatText(introText)}</div>
         <button class="cta-contact-btn" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">${UI_TEXT[selectedLang].ctaBtn}</button>
     </div>`;
     chatBox.appendChild(row);
-    scrollToBottom();
-    preserveScrollPosition(prevTop);
+    scrollToBottomIfNear();
     emitFrontendEvent("contact_cta_shown", {
       active_flow: activeFlow || null
     });
@@ -367,7 +361,6 @@
   }
 
   function renderContactForm(customPlaceholderText) {
-    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "contact-form-container";
     
     let cfHeaderTxt = UI_TEXT[selectedLang].ctaHeader;
@@ -382,7 +375,7 @@
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); 
-    preserveScrollPosition(prevTop);
+    scrollToBottomIfNear();
     emitFrontendEvent("contact_form_shown", {
       active_flow: activeFlow || null,
       placeholder: placeholderTxt
@@ -470,47 +463,37 @@
   }
 
   function addMessage(text, type, showActions = false) {
-    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
     }
     const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); 
     chatBox.appendChild(row);
-    preserveScrollPosition(prevTop);
+    scrollToBottomIfNear();
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
     return row;
   }
 
   async function streamText(bubble, fullText) {
     let index = 0; let currentText = "";
-    const fixedTop = chatBox.scrollTop;
-    
-    // Auto-scroll je vypnutý globálne, nechávame pozíciu scrollu na užívateľovi.
 
     while (index < fullText.length) { 
       currentText += fullText.slice(index, index + 2); 
       bubble.innerHTML = formatText(currentText); 
-      preserveScrollPosition(fixedTop);
       index += 2; 
-      // V rámci průběžného načítání neděláme tvrdý scrollToBottom(), obzvlášť pro extra dlouhé texty, 
-      // aby zákazníkovi nezmizel vršek zprávy. Návštěvník si bude scrollovat sám.
       await new Promise(r => setTimeout(r, 15)); 
     }
+    scrollToBottomIfNear();
   }
 
   function showSearching() {
-    const prevTop = chatBox.scrollTop;
     const row = document.createElement("div"); row.className = "searching-row";
     row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
-    chatBox.appendChild(row); searchingEl = row; scrollToBottom();
-    preserveScrollPosition(prevTop);
+    chatBox.appendChild(row); searchingEl = row; scrollToBottomIfNear();
     const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
     typingInterval = setInterval(() => {
       if (index < text.length) {
         textEl.textContent += text[index++];
-        scrollToBottom();
-        preserveScrollPosition(prevTop);
       } else clearInterval(typingInterval);
     }, 80);
   }
