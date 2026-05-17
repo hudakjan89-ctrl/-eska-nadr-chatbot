@@ -90,6 +90,8 @@
   
   let activeFlow = null;
   let flowTurnCount = 0;
+  let contactCtaShownForFlow = null;
+  let isRequestInFlight = false;
 
   function ensureSessionId() {
     if (sessionId) return sessionId;
@@ -257,6 +259,20 @@
     }
   };
 
+  const CONTACT_INTENTS = [
+    "chci zanechat kontakt",
+    "zanechat kontakt",
+    "chci vyplnit kontakt",
+    "vyplnit kontakt",
+    "kontaktní formulář",
+    "kontaktny formular",
+    "chcem zanechať kontakt",
+    "zanechať kontakt",
+    "chcem zanechat kontakt",
+    "zanechat kontakt",
+    "leave contact"
+  ];
+
   const panel = document.getElementById("chatPanel");
   const chatBox = document.getElementById("chat-box");
   const input = document.getElementById("message-input");
@@ -292,6 +308,19 @@
 
   function scrollToBottomIfNear() {
     if (isNearBottom()) scrollToBottom();
+  }
+
+  function normalizeIntentText(text) {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+
+  function isContactIntent(text) {
+    const normalizedText = normalizeIntentText(text);
+    return CONTACT_INTENTS.some(intent => normalizedText === normalizeIntentText(intent));
   }
   
   function formatText(text) { 
@@ -340,6 +369,7 @@
 
   // Funkce vytvoří jen lákavé CTA k formuláři
   function renderContactCTA(introText, placeholderText) {
+    contactCtaShownForFlow = activeFlow || "__generic__";
     const row = document.createElement("div"); row.className = "message bot cta-block";
     row.innerHTML = `<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
         <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">${formatText(introText)}</div>
@@ -375,7 +405,10 @@
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row); 
-    scrollToBottomIfNear();
+    scrollToBottom();
+    setTimeout(() => {
+      row.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 50);
     emitFrontendEvent("contact_form_shown", {
       active_flow: activeFlow || null,
       placeholder: placeholderTxt
@@ -541,6 +574,7 @@
       
       activeFlow = key;
       flowTurnCount = 0;
+      contactCtaShownForFlow = null;
 
       const row = document.createElement("div"); row.className = `message bot`;
       row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
@@ -552,7 +586,7 @@
           action_key: key,
           channel: "quick_action",
           has_product_url: false,
-          show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size"
+          show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size" || key === "help_choose" || key === "tech_question"
         });
         ingestClientMessage(
           "bot",
@@ -561,12 +595,14 @@
             action_key: key,
             channel: "quick_action",
             has_product_url: false,
-            show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size"
+            show_contact_form: key === "contact" || key === "shipping" || key === "installation" || key === "size" || key === "help_choose" || key === "tech_question"
           },
           "message_bot"
         );
         if (key === "shipping" || key === "installation" || key === "size") {
            renderContactCTA(CTA_TEXTS[selectedLang][key], FLOW_PLACEHOLDERS[selectedLang][key]);
+        } else if (key === "help_choose" || key === "tech_question") {
+           renderContactCTA(CTA_TEXTS[selectedLang]["generic"], FLOW_PLACEHOLDERS[selectedLang][key]);
         } else if (key === "contact") {
            renderContactForm(FLOW_PLACEHOLDERS[selectedLang][key]);
         }
@@ -586,11 +622,15 @@
 
   async function sendDirectMessageToAPI(messageText) {
     showSearching();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
     try {
       const resp = await fetch(`${BASE_URL}/chat`, { 
         method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-        body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }) 
+        body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }),
+        signal: controller.signal
       });
+      if (!resp.ok) throw new Error(`Chat request failed: ${resp.status}`);
       const data = await resp.json(); 
       sessionId = data.session_id; localStorage.setItem("session_id", sessionId);
       hideSearching();
@@ -604,7 +644,7 @@
       flowTurnCount++;
 
       // Inteligentní zobrazení okna pokud chater je v toku kde má dotaz pošoupnout dál k emailu
-      if ((activeFlow === "help_choose" || activeFlow === "tech_question") && flowTurnCount === 1) {
+      if ((activeFlow === "help_choose" || activeFlow === "tech_question") && flowTurnCount === 1 && contactCtaShownForFlow !== activeFlow) {
           renderContactCTA(CTA_TEXTS[selectedLang]["generic"], FLOW_PLACEHOLDERS[selectedLang][activeFlow]);
       }
 
@@ -617,21 +657,36 @@
       }
       
     } catch (err) {
-      hideSearching(); addMessage("Omlouváme se, nastala chyba serveru.", "bot", false);
+      addMessage("Omlouváme se, odpověď se nepodařilo načíst. Zkuste dotaz prosím poslat znovu.", "bot", false);
+    } finally {
+      clearTimeout(timeoutId);
+      hideSearching();
     }
   }
 
   async function sendMessage() {
+    if (isRequestInFlight) return;
     const userText = input.value.trim(); if (!userText) return;
     ensureSessionId();
-    sendBtn.disabled = true; input.value = ""; isFirstMessage = false;
+    isRequestInFlight = true;
+    sendBtn.disabled = true; input.disabled = true; input.value = ""; isFirstMessage = false;
     
     addMessage(userText, "user", false); 
     scrollToBottom();
+
+    if (isContactIntent(userText)) {
+      renderContactForm(FLOW_PLACEHOLDERS[selectedLang][activeFlow] || UI_TEXT[selectedLang].cfNote);
+      isRequestInFlight = false;
+      sendBtn.disabled = false; input.disabled = false; input.focus();
+      return;
+    }
     
-    await sendDirectMessageToAPI(userText);
-    
-    sendBtn.disabled = false; input.focus(); 
+    try {
+      await sendDirectMessageToAPI(userText);
+    } finally {
+      isRequestInFlight = false;
+      sendBtn.disabled = false; input.disabled = false; input.focus();
+    }
   }
 
   sendBtn.addEventListener("click", sendMessage);

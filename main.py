@@ -115,6 +115,79 @@ def detect_page_section(message: str) -> Optional[str]:
             return url
     return None
 
+URL_TAG_RE = re.compile(r'\[\s*URL\s*:\s*(https?://[^\s\]]+)\s*\]?', re.IGNORECASE)
+PRODUCT_MATCH_STOPWORDS = {
+    "pro", "bez", "pod", "nad", "k", "ke", "na", "do", "od", "a", "i", "s", "se", "ve", "v",
+    "the", "and", "for", "with"
+}
+
+def extract_hidden_url_tag(message: str):
+    match = URL_TAG_RE.search(message)
+    if not match:
+        cleaned = re.sub(r'\[\s*URL\s*:[^\]]*\]?', '', message, flags=re.IGNORECASE).strip()
+        return None, cleaned
+
+    url = match.group(1).rstrip('.,;')
+    cleaned = URL_TAG_RE.sub('', message).strip()
+    return url, cleaned
+
+def normalize_product_match_text(text: str) -> str:
+    text = remove_diacritics((text or "").lower())
+    text = text.replace("m³", "m3")
+    text = re.sub(r'(\d+)\s*m\s*3', r'\1 m3', text)
+    text = re.sub(r'[^a-z0-9]+', ' ', text)
+    return " ".join(text.split())
+
+def product_match_score(product: dict, assistant_message: str) -> int:
+    product_text = normalize_product_match_text(product.get("name", ""))
+    message_text = normalize_product_match_text(assistant_message)
+    if not product_text or not message_text:
+        return 0
+
+    product_numbers = set(re.findall(r'\d+', product_text))
+    message_numbers = set(re.findall(r'\d+', message_text))
+    if product_numbers and not product_numbers.intersection(message_numbers):
+        return 0
+
+    product_stems = {
+        word[:4]
+        for word in product_text.split()
+        if len(word) > 2 and word not in PRODUCT_MATCH_STOPWORDS and not word.isdigit()
+    }
+    message_stems = {
+        word[:4]
+        for word in message_text.split()
+        if len(word) > 2 and word not in PRODUCT_MATCH_STOPWORDS and not word.isdigit()
+    }
+
+    score = len(product_stems.intersection(message_stems))
+    score += 3 * len(product_numbers.intersection(message_numbers))
+    if "m3" in product_text and "m3" in message_text:
+        score += 1
+    return score
+
+def find_product_by_url(products: list, url: str):
+    return next((p for p in products if p.get("url") == url), None)
+
+def resolve_mentioned_product(products: list, assistant_message: str, detected_url: Optional[str]):
+    if not products:
+        return None
+
+    best_product = None
+    best_score = 0
+    for product in products:
+        score = product_match_score(product, assistant_message)
+        if score > best_score:
+            best_product = product
+            best_score = score
+
+    current_product = find_product_by_url(products, detected_url) if detected_url else None
+    current_score = product_match_score(current_product, assistant_message) if current_product else 0
+
+    if best_product and best_score >= 5 and best_score > current_score:
+        return best_product
+    return current_product
+
 async def update_database_task():
     try:
         logger.info("Vykonavam planovanu ulohu update_database_task...")
@@ -195,7 +268,8 @@ async def chat(request: Request, chat_req: ChatRequest):
             metadata={"source": "web_widget"}
         )
     
-    optimized_query = await generate_optimized_search_query(sessions[session_id], chat_req.message)
+    is_contact_capture = "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message or "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message
+    optimized_query = "CONTACT_CAPTURE" if is_contact_capture else await generate_optimized_search_query(sessions[session_id], chat_req.message)
     log_message(session_id, "user", chat_req.message)
     emit_event(
         event_name="message_user",
@@ -210,10 +284,8 @@ async def chat(request: Request, chat_req: ChatRequest):
         }
     )
 
-    sessions[session_id].append({"role": "user", "content": chat_req.message})
-    
     # Detekce leadu (odeslaný aktivně nebo pasivně zachycený)
-    if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message or "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message:
+    if is_contact_capture:
         send_lead_email(chat_req.message, sessions[session_id])
         if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message:
             emit_event(
@@ -233,6 +305,9 @@ async def chat(request: Request, chat_req: ChatRequest):
                 language=chat_req.language,
                 metadata={"channel": "chat"}
             )
+        return ChatResponse(response="", session_id=session_id)
+    
+    sessions[session_id].append({"role": "user", "content": chat_req.message})
     
     products_context = ""
     found_products = []
@@ -276,16 +351,26 @@ async def chat(request: Request, chat_req: ChatRequest):
         "3) KONZISTENCE S VLASTNÍMI PŘEDCHOZÍMI ODPOVĚDMI: Pokud jsi v této konverzaci již doporučil konkrétní produkt nebo typ řešení, v dalších zprávách tento fakt neodvolávej. Nikdy neříkej 'nemáme nádrže na vodu', pokud jsi o kus výš nějakou nádrž doporučil. Když si nejsi jistý, odkaž zákazníka na svou předchozí odpověď místo popření.\n\n"
         "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná), orientační objem, umístění (zelená plocha / pojezd / spodní voda). Jakmile toto víš, okamžitě nabídni nejvhodnější produkt ze sekce NALEZENÉ PRODUKTY.\n\n"
         "5) ZÁKAZ VYMÝŠLENÍ: Čerpej VÝHRADNĚ ze sekcí 'NALEZENÉ PRODUKTY' a 'FIREMNÍ DATABÁZE'. Pokud tam informace není, řekni, že ji nemáš, a nabídni kontakt na obchod@ceskanadrz.cz. Nevymýšlej si parametry, ceny ani vlastnosti, které nejsou v datech.\n\n"
-        "6) ATYPICKÉ POŽADAVKY: Pokud zákazník chce něco, co v produktech není (atypický objem, speciální provedení), odkaž ho na výrobu na míru: 'Napište svůj přesný požadavek na obchod@ceskanadrz.cz, výroba na míru u nás není problém.'\n\n"
-        "7) ODKAZ NA PRODUKT: Když doporučíš konkrétní produkt z e-shopu, VŽDY přidej na úplný konec zprávy skrytý tag ve formátu [URL: konkretni_odkaz_z_databaze]. Nevkládej URL volně do textu, pouze tímto tagem.\n\n"
+        "6) ATYPICKÉ POŽADAVKY: Pokud zákazník chce něco, co v produktech není (atypický objem, speciální provedení), odkaž ho na výrobu na míru podle dodaných rozměrů: 'Napište svůj přesný požadavek, rozměry a účel na obchod@ceskanadrz.cz a kolegové posoudí vhodné řešení.' Nikdy netvrď, že nádrž vyrobíme nebo svaříme přímo na místě u zákazníka.\n\n"
+        "7) ODKAZ NA PRODUKT: Když doporučíš konkrétní produkt z e-shopu, VŽDY přidej na úplný konec zprávy skrytý tag přesně ve formátu [URL: https://www.ceskanadrz.cz/konkretni-produkt/]. Tag musí mít hranaté závorky, nesmí být v markdown odkazu a nesmí být volně v textu.\n\n"
         "8) DOTACE (Dešťovka / Nová zelená úsporám): Pokud téma dotací zazní, odpověz: 'Podmínky dotací se průběžně mění, zanechte mi prosím kontakt (e-mail, telefon) a náš dotační specialista se vám ozve.' Na konec zprávy přidej tag: [SHOW_CONTACT_FORM].\n\n"
         "FORMÁT ODPOVĚDÍ:\n"
         "- Piš plynulým textem v odstavcích. Nepoužívej nadpisy typu ### nebo ####. Nepoužívej markdown tabulky. Nepoužívej emoji (✔️, ❌, 👉, 💡 atd.) ani horizontální oddělovače (---).\n"
         "- Tučně (pomocí **text**) formátuj POUZE klíčové kontakty (e-mail, telefon) a kritické parametry, nic jiného.\n"
         "- Nedávej odrážkové seznamy, pokud to zákazník neočekává (např. výčet parametrů). Preferuj souvislý text.\n"
         "- Drž se 2–5 vět na odpověď, pokud si zákazník nevyžádá detail.\n\n"
+        "KONTAKT A FORMULÁŘ:\n"
+        "- Nikdy netvrď, že už máme kontakt na zákazníka, pokud v běžné viditelné historii není jasně řečeno, že formulář odeslal. Samotné zobrazení formuláře nebo výzva k zanechání kontaktu neznamená, že kontakt máme.\n"
+        "- Když se zákazník ptá, s kým to může probrat, odpověz kontaktem na obchodní oddělení: obchod@ceskanadrz.cz a telefon 737 234 461. Nepiš, že se mu ozveme, pokud ještě nezanechal e-mail nebo telefon.\n\n"
+        "- Když se zákazník ptá na objednávku, objednání v chatu, dokončení objednávky nebo chce poradit s objednáním konkrétního produktu, řekni stručně, že objednávku v chatu přímo nevytvoří, ale může zanechat kontakt; zavoláme mu a objednávku společně uděláme telefonicky. Na konec zprávy vždy přidej tag [SHOW_CONTACT_FORM].\n\n"
         "TECHNICKÁ FAKTA (často chybovaná):\n"
         "- Samonosné septiky NEVYŽADUJÍ obetonování — zvládají standardní podmínky v zemi bez betonu.\n"
+        "- U septiků zákazníkům standardně doporučuj tříkomorové septiky. Nenabízej šesti-komorové ani zbytečně větší septiky, pokud si zákazník výslovně neřekne o velkou kapacitu nebo z dat jasně nevyplývá trvalé vysoké zatížení. U chat a víkendového provozu zohledni, že nejde o plné celoroční obsazení, a preferuj menší vhodné řešení.\n"
+        "- K septikům spontánně nepřidávej zemní pískový filtr, vypouštění, povolení ani jiné legislativní doplňky, pokud se zákazník výslovně neptá na legislativu nebo vypouštění.\n"
+        "- U vodoměrných šachet nenabízej konkrétní velikost, model ani cenu podle vlastního odhadu. Doporuč jen konstrukční typ podle podmínek (např. samonosná / k obetonování) a u velikosti vždy odkaž na požadavky místní vodárenské společnosti nebo správce vodovodu. Konkrétní produkt a URL dávej až tehdy, když zákazník uvede požadovaný rozměr nebo typ podle vodáren.\n"
+        "- Výroba nebo svařování plastové nádrže přímo na místě u zákazníka může být obecně technicky možné, ale Česká nádrž tuto službu neposkytuje. Pokud se zákazník ptá na nádrž do sklepa nebo svaření na místě, řekni, že to neděláme, a nabídni posouzení zákazkového řešení podle rozměrů přístupové cesty, sklepa, požadovaného objemu a účelu.\n"
+        "- Při orientačním výpočtu velikosti jímky používej 100 litrů odpadní vody na osobu a den, ne 150 litrů. Vždy připomeň, že skutečná velikost závisí i na frekvenci vývozu a reálné spotřebě domácnosti.\n"
+        "- U dešťové vody a čerpání nedoporučuj čerpadla s plovákem. Preferuj automaty a ideálně hotové sety. Pokud zákazník řeší využití vody z nádrže, doporučuj spíše kompletní vhodný set než samostatně filtr a samostatné čerpadlo.\n"
         "- Plastové nádrže do 5 m³ lze usadit ručně, nevyžadují bagr ani speciální techniku.\n"
         "- Nikdy zákazníkovi neříkej, že 'od 5 m³ potřebuje speciální techniku' — není to pravda.\n"
         "- Nenabízej dělení objemu na více nádrží, pokud zákazník explicitně nechce objem nad 20 m³ a sám se na to nezeptá.\n\n"
@@ -322,27 +407,27 @@ async def chat(request: Request, chat_req: ChatRequest):
             assistant_message = re.sub(r'\n{3,}', '\n\n', assistant_message)
             assistant_message = re.sub(r'^#{2,6}\s+', '', assistant_message, flags=re.MULTILINE)
             assistant_message = re.sub(r'\n\s*---+\s*\n', '\n\n', assistant_message)
-            # Odstraň osamělé tagy které nejsou [URL:...] ani [SHOW_CONTACT_FORM]
-            assistant_message = re.sub(r'\[(?!URL:|SHOW_CONTACT_FORM)[^\]]*\]', '', assistant_message)
             assistant_message = assistant_message.strip()
             
             detected_url = detect_page_section(chat_req.message) 
             detected_image = None
-            url_match = re.search(r'\[URL:\s*(https?://[^\s\]]+)\s*\]', assistant_message, re.IGNORECASE)
+            hidden_url, assistant_message = extract_hidden_url_tag(assistant_message)
             
-            if url_match:
+            if hidden_url:
                 log_event("product_recommendation")
-                detected_url = url_match.group(1)
+                detected_url = hidden_url
+                corrected_from_url = None
+                mentioned_product = resolve_mentioned_product(found_products, assistant_message, detected_url)
+                if mentioned_product and mentioned_product.get("url") != detected_url:
+                    corrected_from_url = detected_url
+                    detected_url = mentioned_product.get("url")
                 
                 if detected_url not in recommended_urls[session_id]:
                     recommended_urls[session_id].append(detected_url)
                 
-                assistant_message = re.sub(r'\[URL:\s*https?://[^\s\]]+\s*\]', '', assistant_message, flags=re.IGNORECASE).strip()
-                
-                for p in found_products:
-                    if p.get('url') == detected_url:
-                        detected_image = p.get('image_url')
-                        break
+                detected_product = mentioned_product or find_product_by_url(found_products, detected_url)
+                if detected_product:
+                    detected_image = detected_product.get('image_url')
                 emit_event(
                     event_name="product_recommended",
                     session_id=session_id,
@@ -352,6 +437,7 @@ async def chat(request: Request, chat_req: ChatRequest):
                     metadata={
                         "url": detected_url,
                         "image_url": detected_image,
+                        "corrected_from_url": corrected_from_url,
                         "optimized_query": optimized_query
                     }
                 )
@@ -369,6 +455,9 @@ async def chat(request: Request, chat_req: ChatRequest):
                     language=chat_req.language,
                     metadata={"trigger": "assistant_response"}
                 )
+            
+            # Odstraň osamělé tagy, které nejsou určené k zobrazení zákazníkovi.
+            assistant_message = re.sub(r'\[(?!\s*SHOW_CONTACT_FORM\s*\])[^\]]*\]', '', assistant_message, flags=re.IGNORECASE).strip()
             
             # Necháme hvězdičky pro markdown formátování zpráv:
             # assistant_message = assistant_message.replace("**", "")
