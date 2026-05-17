@@ -18,7 +18,7 @@ from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
-from admin import router as admin_router
+from admin import router as admin_router, refresh_dashboard_cache
 from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
 from mailer import send_lead_email
@@ -211,8 +211,11 @@ async def startup_event():
     load_and_upsert_knowledge()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
+    scheduler.add_job(refresh_dashboard_cache, 'interval', hours=2)
     scheduler.start()
     logger.info("Naplanovana uloha update_database_task (kazdych 6 hodin).")
+    logger.info("Naplanovana uloha refresh_dashboard_cache (kazde 2 hodiny).")
+    refresh_dashboard_cache()
     asyncio.create_task(update_database_task())
 
 @app.get("/")
