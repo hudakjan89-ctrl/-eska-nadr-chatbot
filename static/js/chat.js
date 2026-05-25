@@ -14,6 +14,7 @@
 
   const chatHTML = `
     <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
+      <div class="eniq-launcher-cta" id="launcherCta">Potřebujete poradit?</div>
       <div class="eniq-launcher-avatar">
         <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
       </div>
@@ -92,6 +93,8 @@
   let flowTurnCount = 0;
   let contactCtaShownForFlow = null;
   let isRequestInFlight = false;
+  let launcherCtaTimer = null;
+  const LAUNCHER_CTA_DELAY_MS = 7000;
 
   function ensureSessionId() {
     if (sessionId) return sessionId;
@@ -149,10 +152,10 @@
   }
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:" },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:" },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:" },
-    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:" }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:", launcherCta: "Potřebujete poradit?" },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", launcherCta: "Potrebujete poradiť?" },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", launcherCta: "Need advice?" },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", launcherCta: "Потрібна порада?" }
   };
 
   const QUICK_ACTIONS = {
@@ -274,6 +277,7 @@
   ];
 
   const panel = document.getElementById("chatPanel");
+  const launcher = document.getElementById("chatLauncher");
   const chatBox = document.getElementById("chat-box");
   const input = document.getElementById("message-input");
   const sendBtn = document.getElementById("sendBtn");
@@ -284,6 +288,7 @@
     document.getElementById("themeLabel").textContent = UI_TEXT[selectedLang].themeLabel;
     document.getElementById("langLabel").textContent = UI_TEXT[selectedLang].langLabel;
     document.getElementById("langSelect").value = selectedLang;
+    document.getElementById("launcherCta").textContent = UI_TEXT[selectedLang].launcherCta;
   }
 
   function setExpanded(expanded) {
@@ -308,6 +313,33 @@
 
   function scrollToBottomIfNear() {
     if (isNearBottom()) scrollToBottom();
+  }
+
+  function scrollMessageToTop(messageRow) {
+    if (!messageRow) return;
+    const chatRect = chatBox.getBoundingClientRect();
+    const rowRect = messageRow.getBoundingClientRect();
+    const topPadding = 8;
+    chatBox.scrollTo({
+      top: chatBox.scrollTop + rowRect.top - chatRect.top - topPadding,
+      behavior: "smooth"
+    });
+  }
+
+  function hideLauncherCTA() {
+    if (launcherCtaTimer) clearTimeout(launcherCtaTimer);
+    launcherCtaTimer = null;
+    launcher.classList.remove("cta-visible");
+  }
+
+  function scheduleLauncherCTA() {
+    hideLauncherCTA();
+    if (panel.classList.contains("open")) return;
+    launcherCtaTimer = setTimeout(() => {
+      if (!panel.classList.contains("open")) {
+        launcher.classList.add("cta-visible");
+      }
+    }, LAUNCHER_CTA_DELAY_MS);
   }
 
   function normalizeIntentText(text) {
@@ -388,9 +420,10 @@
         row.remove();
         renderContactForm(placeholderText);
     });
+    return row;
   }
 
-  function renderContactForm(customPlaceholderText) {
+  function renderContactForm(customPlaceholderText, shouldAutoScroll = true) {
     const row = document.createElement("div"); row.className = "contact-form-container";
     
     let cfHeaderTxt = UI_TEXT[selectedLang].ctaHeader;
@@ -404,11 +437,13 @@
       <textarea class="cf-input cf-note" placeholder="${placeholderTxt}" rows="3" style="resize:vertical;"></textarea>
       <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
-    chatBox.appendChild(row); 
-    scrollToBottom();
-    setTimeout(() => {
-      row.scrollIntoView({ behavior: "smooth", block: "end" });
-    }, 50);
+    chatBox.appendChild(row);
+    if (shouldAutoScroll) {
+      scrollToBottom();
+      setTimeout(() => {
+        row.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 50);
+    }
     emitFrontendEvent("contact_form_shown", {
       active_flow: activeFlow || null,
       placeholder: placeholderTxt
@@ -493,6 +528,7 @@
           body: JSON.stringify({ message: hiddenMessage, session_id: sessionId, language: selectedLang }) 
       });
     });
+    return row;
   }
 
   function addMessage(text, type, showActions = false) {
@@ -536,13 +572,15 @@
     if (searchingEl) { searchingEl.remove(); searchingEl = null; }
   }
 
-  document.getElementById("chatLauncher").addEventListener("click", () => {
+  launcher.addEventListener("click", () => {
+    hideLauncherCTA();
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
     if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
   });
 
   document.getElementById("closeBtn").addEventListener("click", () => { 
     panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); document.getElementById("settingsMenu").classList.remove('active'); 
+    scheduleLauncherCTA();
   });
   
   document.getElementById("settingsBtn").addEventListener("click", () => document.getElementById("settingsMenu").classList.toggle('active'));
@@ -568,7 +606,7 @@
         query_text: quickText,
         channel: "quick_action"
       });
-      addMessage(quickText, "user", false);
+      const userMessageRow = addMessage(quickText, "user", false);
       ingestClientMessage("user", quickText, { action_key: key, channel: "quick_action" }, "message_user");
       scrollToBottom();
       
@@ -604,8 +642,9 @@
         } else if (key === "help_choose" || key === "tech_question") {
            renderContactCTA(CTA_TEXTS[selectedLang]["generic"], FLOW_PLACEHOLDERS[selectedLang][key]);
         } else if (key === "contact") {
-           renderContactForm(FLOW_PLACEHOLDERS[selectedLang][key]);
+           renderContactForm(FLOW_PLACEHOLDERS[selectedLang][key], false);
         }
+        requestAnimationFrame(() => scrollMessageToTop(userMessageRow));
       });
     }
     
@@ -696,5 +735,7 @@
   if (isChatOpen) { 
     panel.classList.add('open'); 
     if (chatBox.children.length === 0) { isFirstMessage = true; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); } 
+  } else {
+    scheduleLauncherCTA();
   }
 })();

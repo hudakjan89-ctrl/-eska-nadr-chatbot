@@ -51,6 +51,39 @@
   50% { transform: translateY(-6px); } 
 }
 .eniq-launcher:hover { animation: none; transform: translateY(0) scale(1.05); }
+.eniq-launcher-cta {
+  position: absolute;
+  right: 72px;
+  bottom: 18px;
+  min-width: max-content;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #005b9f;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(0, 91, 159, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px) scale(0.96);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+}
+.eniq-launcher-cta::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #005b9f;
+  transform: translateY(-50%) rotate(45deg);
+}
+.eniq-launcher.cta-visible .eniq-launcher-cta {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
 
 /* ============== Panel ============== */
 .eniq-panel {
