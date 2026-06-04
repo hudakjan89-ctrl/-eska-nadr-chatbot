@@ -27,7 +27,7 @@ from database import upsert_products, search_products, load_and_upsert_knowledge
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
-from mailer import send_lead_email, smtp_configured
+from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -213,12 +213,16 @@ async def update_database_task():
 
 @app.on_event("startup")
 async def startup_event():
-    if smtp_configured():
-        logger.info("SMTP pre lead emaily: nakonfigurovane.")
+    if resend_configured():
+        logger.info("Lead notifikácie: Resend API (HTTPS) — odporúčané pre Docker hosting.")
+    elif smtp_configured():
+        logger.info("Lead notifikácie: SMTP (môže byť zablokované z kontajnera).")
+    elif discord_configured():
+        logger.info("Lead notifikácie: Discord webhook (záloha bez emailu).")
     else:
         logger.warning(
-            "SMTP pre lead emaily: chybaju SMTP_HOST, SMTP_USER alebo SMTP_PASS — "
-            "leady sa nebudú odosielat emailom."
+            "Lead notifikácie nie sú nakonfigurované — nastavte RESEND_API_KEY "
+            "alebo DISCORD_WEBHOOK_URL (SMTP z Dockeru často nefunguje)."
         )
     logger.info("Aplikacia startuje. Vykonava sa load_and_upsert_knowledge...")
     load_and_upsert_knowledge()

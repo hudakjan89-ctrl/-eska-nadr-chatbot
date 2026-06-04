@@ -5,6 +5,8 @@ from email.message import EmailMessage
 import logging
 import asyncio
 
+import httpx
+
 logger = logging.getLogger("ceska_nadrz.mailer")
 
 DEFAULT_TARGET_EMAILS = [
@@ -13,8 +15,43 @@ DEFAULT_TARGET_EMAILS = [
 ]
 
 
+def _target_emails() -> list:
+    targets_raw = os.getenv("LEAD_TARGET_EMAILS", "").strip()
+    if targets_raw:
+        return [e.strip() for e in targets_raw.split(",") if e.strip()]
+    return list(DEFAULT_TARGET_EMAILS)
+
+
+def _from_email() -> str:
+    return (
+        os.getenv("RESEND_FROM_EMAIL", "").strip()
+        or os.getenv("FROM_EMAIL", "").strip()
+        or os.getenv("SMTP_USER", "").strip()
+        or "Chatbot Česká Nádrž <onboarding@resend.dev>"
+    )
+
+
+def resend_configured() -> bool:
+    return bool(os.getenv("RESEND_API_KEY", "").strip())
+
+
+def smtp_configured() -> bool:
+    host = os.getenv("SMTP_HOST", "").strip()
+    user = os.getenv("SMTP_USER", "").strip()
+    password = os.getenv("SMTP_PASS", "").strip()
+    return bool(host and user and password)
+
+
+def discord_configured() -> bool:
+    return bool(os.getenv("DISCORD_WEBHOOK_URL", "").strip())
+
+
+def email_delivery_configured() -> bool:
+    return resend_configured() or smtp_configured() or discord_configured()
+
+
 def _smtp_settings():
-    """Načíta SMTP nastavenia pri každom odoslaní (nie len pri importe modulu)."""
+    """Načíta SMTP nastavenia pri každom odoslaní."""
     host = os.getenv("SMTP_HOST", "").strip()
     port_raw = os.getenv("SMTP_PORT", "587").strip() or "587"
     user = os.getenv("SMTP_USER", "").strip()
@@ -25,17 +62,7 @@ def _smtp_settings():
     except ValueError:
         logger.error("Neplatný SMTP_PORT=%r, používam 587", port_raw)
         port = 587
-    targets_raw = os.getenv("LEAD_TARGET_EMAILS", "").strip()
-    if targets_raw:
-        targets = [e.strip() for e in targets_raw.split(",") if e.strip()]
-    else:
-        targets = list(DEFAULT_TARGET_EMAILS)
-    return host, port, user, password, from_email, targets
-
-
-def smtp_configured() -> bool:
-    host, _, user, password, _, _ = _smtp_settings()
-    return bool(host and user and password)
+    return host, port, user, password, from_email
 
 
 def format_history_to_text(chat_history: list) -> str:
@@ -52,15 +79,66 @@ def format_history_to_text(chat_history: list) -> str:
     return "\n".join(lines)
 
 
-async def _send_smtp_email(subject: str, body: str, to_addresses: list):
-    """Priame asynchrónne odoslanie emailu cez SMTP v executor thread."""
-    smtp_host, smtp_port, smtp_user, smtp_pass, from_email, _ = _smtp_settings()
+async def _send_via_resend(subject: str, body: str, to_addresses: list) -> bool:
+    api_key = os.getenv("RESEND_API_KEY", "").strip()
+    if not api_key:
+        return False
+
+    payload = {
+        "from": _from_email(),
+        "to": to_addresses,
+        "subject": subject,
+        "text": body,
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30.0,
+            )
+        if response.status_code in (200, 201):
+            logger.info("E-mail [%s] odoslaný cez Resend na: %s", subject, ", ".join(to_addresses))
+            return True
+        logger.error("Resend API odmietlo odoslanie (%s): %s", response.status_code, response.text)
+        return False
+    except Exception:
+        logger.exception("Chyba pri odosielaní emailu cez Resend API")
+        return False
+
+
+async def _send_discord_lead(subject: str, body: str) -> bool:
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        return False
+
+    text = body if len(body) <= 1800 else body[:1800] + "\n…(skrátené)"
+    content = f"📩 **{subject}**\n```\n{text}\n```"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                webhook_url,
+                json={"content": content},
+                timeout=15.0,
+            )
+        if response.status_code in (200, 204):
+            logger.info("Lead notifikácia odoslaná na Discord webhook.")
+            return True
+        logger.error("Discord webhook zlyhal (%s): %s", response.status_code, response.text)
+        return False
+    except Exception:
+        logger.exception("Chyba pri odosielaní leadu na Discord")
+        return False
+
+
+async def _send_smtp_email(subject: str, body: str, to_addresses: list) -> bool:
+    """SMTP — na mnohých Docker hostoch je outbound port 465/587 zablokovaný."""
+    smtp_host, smtp_port, smtp_user, smtp_pass, from_email = _smtp_settings()
     if not smtp_host or not smtp_user or not smtp_pass:
-        logger.warning(
-            "SMTP údaje nie sú kompletne nastavené (SMTP_HOST/SMTP_USER/SMTP_PASS). "
-            "Preskakujem odoslanie mailu: %s",
-            subject,
-        )
         return False
 
     msg = EmailMessage()
@@ -84,51 +162,36 @@ async def _send_smtp_email(subject: str, body: str, to_addresses: list):
                 server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
 
-    def send_sync():
-        send_on_port(smtp_port)
-
     alternate_port = 587 if smtp_port == 465 else 465
-    try:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, send_sync)
-        logger.info("E-mail [%s] bol úspešne odoslaný na: %s", subject, msg["To"])
-        return True
-    except (ConnectionRefusedError, OSError) as e:
-        if getattr(e, "errno", None) == 111 or isinstance(e, ConnectionRefusedError):
-            logger.warning(
-                "SMTP %s:%s odmietol spojenie (%s), skúšam port %s…",
-                smtp_host, smtp_port, e, alternate_port,
-            )
-            try:
-                await loop.run_in_executor(None, lambda: send_on_port(alternate_port))
-                logger.info(
-                    "E-mail [%s] odoslaný cez záložný port %s na: %s",
-                    subject, alternate_port, msg["To"],
-                )
-                return True
-            except Exception:
-                logger.exception(
-                    "Chyba pri odosielaní emailu cez SMTP (%s:%s aj %s)",
-                    smtp_host, smtp_port, alternate_port,
-                )
-                logger.error(
-                    "Ak oba porty zlyhajú, hosting pravdepodobne blokuje odchádzajúci SMTP "
-                    "z kontajnera. Nastavte SMTP_PORT=587 v ENV alebo použite iný SMTP "
-                    "(napr. Gmail app password) / HTTP API (Resend, SendGrid)."
-                )
-                return False
-        logger.exception("Chyba pri odosielaní emailu cez SMTP (%s:%s)", smtp_host, smtp_port)
-        return False
-    except Exception:
-        logger.exception("Chyba pri odosielaní emailu cez SMTP (%s:%s)", smtp_host, smtp_port)
-        return False
+    loop = asyncio.get_running_loop()
+    for port in (smtp_port, alternate_port):
+        try:
+            await loop.run_in_executor(None, lambda p=port: send_on_port(p))
+            logger.info("E-mail [%s] odoslaný cez SMTP %s:%s na: %s", subject, smtp_host, port, msg["To"])
+            return True
+        except (ConnectionRefusedError, OSError) as e:
+            if getattr(e, "errno", None) == 111 or isinstance(e, ConnectionRefusedError):
+                logger.warning("SMTP %s:%s — connection refused", smtp_host, port)
+                continue
+            logger.exception("Chyba pri odosielaní emailu cez SMTP (%s:%s)", smtp_host, port)
+            return False
+        except Exception:
+            logger.exception("Chyba pri odosielaní emailu cez SMTP (%s:%s)", smtp_host, port)
+            return False
+
+    logger.error(
+        "SMTP %s nefunguje (porty %s/%s). Hosting blokuje odchádzajúci SMTP — "
+        "nastavte RESEND_API_KEY (odporúčané) alebo DISCORD_WEBHOOK_URL.",
+        smtp_host, smtp_port, alternate_port,
+    )
+    return False
 
 
-async def send_lead_email(lead_data: str, chat_history: list):
+async def send_lead_email(lead_data: str, chat_history: list) -> bool:
     """
-    Odošle informáciu o novom leade spoločne s kompletnou históriou chatu.
+    Odošle lead. Priorita: Resend (HTTP) → SMTP → Discord webhook.
     """
-    _, _, _, _, _, target_emails = _smtp_settings()
+    target_emails = _target_emails()
     subject = "NOVÝ KONTAKT z Chatbota!"
     body = f"""Dobrý den,
 
@@ -146,4 +209,22 @@ TRANSKRIPT CELÉ KONVERZACE:
 
 (Tato zpráva je generována automaticky Česká Nádrž Botem.)
 """
-    return await _send_smtp_email(subject, body, target_emails)
+
+    if resend_configured():
+        if await _send_via_resend(subject, body, target_emails):
+            return True
+        logger.warning("Resend zlyhal, skúšam záložné kanály…")
+
+    if smtp_configured():
+        if await _send_smtp_email(subject, body, target_emails):
+            return True
+        logger.warning("SMTP zlyhal, skúšam Discord…")
+
+    if discord_configured():
+        return await _send_discord_lead(subject, body)
+
+    logger.error(
+        "Lead sa nepodarilo odoslať — nastavte RESEND_API_KEY (email cez HTTPS) "
+        "alebo DISCORD_WEBHOOK_URL (okamžitá záloha)."
+    )
+    return False
