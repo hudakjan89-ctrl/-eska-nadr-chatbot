@@ -1,6 +1,12 @@
 import os
 import sys
 import logging
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 import uuid
 import httpx
 import asyncio
@@ -21,7 +27,7 @@ from database import upsert_products, search_products, load_and_upsert_knowledge
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
-from mailer import send_lead_email
+from mailer import send_lead_email, smtp_configured
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -207,6 +213,13 @@ async def update_database_task():
 
 @app.on_event("startup")
 async def startup_event():
+    if smtp_configured():
+        logger.info("SMTP pre lead emaily: nakonfigurovane.")
+    else:
+        logger.warning(
+            "SMTP pre lead emaily: chybaju SMTP_HOST, SMTP_USER alebo SMTP_PASS — "
+            "leady sa nebudú odosielat emailom."
+        )
     logger.info("Aplikacia startuje. Vykonava sa load_and_upsert_knowledge...")
     load_and_upsert_knowledge()
     scheduler = AsyncIOScheduler()
@@ -289,7 +302,8 @@ async def chat(request: Request, chat_req: ChatRequest):
 
     # Detekce leadu (odeslaný aktivně nebo pasivně zachycený)
     if is_contact_capture:
-        send_lead_email(chat_req.message, sessions[session_id])
+        history = list(sessions[session_id]) + [{"role": "user", "content": chat_req.message}]
+        await send_lead_email(chat_req.message, history)
         if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message:
             emit_event(
                 event_name="contact_submitted",
