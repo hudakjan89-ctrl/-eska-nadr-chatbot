@@ -1,4 +1,5 @@
 import os
+import re
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -65,6 +66,35 @@ def _smtp_settings():
     return host, port, user, password, from_email
 
 
+def _strip_bot_instructions(text: str) -> str:
+    """Odstráni interné inštrukcie pre AI z hidden správ formulára."""
+    text = re.sub(
+        r"\.\s*Zákazník právě vyplnil formulář\..*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\.\s*Toto je tiše odchycený nedokončený lead.*$",
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    return text.strip()
+
+
+def format_lead_for_email(lead_data: str) -> str:
+    """Čistý text leadu pre email/Discord bez bot inštrukcií."""
+    text = _strip_bot_instructions(lead_data)
+    if text.startswith("[KONTAKTNÍ FORMULÁŘ]"):
+        return "Typ: Kontaktní formulář\n" + text.replace("[KONTAKTNÍ FORMULÁŘ] ", "", 1)
+    if text.startswith("[PASIVNÍ ZÁCHYT KONTAKTU]"):
+        return "Typ: Pasivní záchyt (nedokončený formulář)\n" + text.replace(
+            "[PASIVNÍ ZÁCHYT KONTAKTU] ", "", 1
+        )
+    return text
+
+
 def format_history_to_text(chat_history: list) -> str:
     """Prevedie historiu konverzácie do čitateľného plain-text pre email."""
     if not chat_history:
@@ -73,7 +103,11 @@ def format_history_to_text(chat_history: list) -> str:
     lines = []
     for msg in chat_history:
         role = "Zákazník" if msg["role"] == "user" else "Asistent"
-        content = msg["content"].replace("\n", " ")
+        content = _strip_bot_instructions(msg["content"]).replace("\n", " ")
+        if content.startswith("[KONTAKTNÍ FORMULÁŘ]"):
+            content = format_lead_for_email(content)
+        elif content.startswith("[PASIVNÍ ZÁCHYT KONTAKTU]"):
+            content = format_lead_for_email(content)
         lines.append(f"[{role}]: {content}")
 
     return "\n".join(lines)
@@ -199,7 +233,7 @@ chatbot na webu zaznamenal nový kontakt.
 
 DETAILY KONTAKTU / POŽADAVEK:
 -----------------------------------------
-{lead_data}
+{format_lead_for_email(lead_data)}
 -----------------------------------------
 
 TRANSKRIPT CELÉ KONVERZACE:

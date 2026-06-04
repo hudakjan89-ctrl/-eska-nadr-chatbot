@@ -483,7 +483,7 @@
       const fname = fnameInput.value.trim() || 'Nezadáno';
       if (!passiveSent && email.includes('@') && email.includes('.')) {
         passiveSent = true;
-        const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}. Toto je tiše odchycený nedokončený lead z rozkoukaného formuláře, nijak na něj neodpovídej, jen si ho ulož.`;
+        const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}.`;
         fetch(`${BASE_URL}/chat`, { 
           method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
           body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang }) 
@@ -506,7 +506,7 @@
       const safeFname = fname || "Nevyplněno";
       const safePhone = phone || "Nevyplněno";
       const safeNote = note || "Žádná poznámka";
-      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}. Zákazník právě vyplnil formulář. Poděkuj mu a řekni, že to předáváš, a zeptej se, s čím dalším mu teď můžeš pomoci.`;
+      const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}.`;
       
       addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
       ingestClientMessage(
