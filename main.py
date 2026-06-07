@@ -23,7 +23,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
-from database import upsert_products, search_products, load_and_upsert_knowledge, search_knowledge
+from database import upsert_products, search_products, search_knowledge
+from knowledge_github import load_knowledge_on_startup, is_github_configured
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
@@ -203,9 +204,7 @@ async def update_database_task():
             upsert_products(products)
         else:
             logger.warning("Ziadne produkty stiahnute z XML (prazdny zoznam).")
-        
-        logger.info("Refreshujem knowledge base...")
-        load_and_upsert_knowledge()
+
         logger.info("Uloha update_database_task dokoncena uspesne.")
     except Exception as e:
         logger.exception("Kriticka chyba v opakovanej ulohe update_database_task!")
@@ -224,13 +223,25 @@ async def startup_event():
             "Lead notifikácie nie sú nakonfigurované — nastavte RESEND_API_KEY "
             "alebo DISCORD_WEBHOOK_URL (SMTP z Dockeru často nefunguje)."
         )
-    logger.info("Aplikacia startuje. Vykonava sa load_and_upsert_knowledge...")
-    load_and_upsert_knowledge()
+    if is_github_configured():
+        logger.info(
+            "Knowledge base: GitHub %s/%s@%s (aktualizácia len cez portál webhook)",
+            os.getenv("GITHUB_OWNER", "hudakjan89-ctrl"),
+            os.getenv("GITHUB_REPO", "ceskanadrz-knowledge"),
+            os.getenv("GITHUB_BRANCH", "main"),
+        )
+    else:
+        logger.warning(
+            "GITHUB_TOKEN nie je nastavený — knowledge base sa načíta len z lokálnej cache."
+        )
+    logger.info("Aplikacia startuje. Nacitavam knowledge base...")
+    sections = load_knowledge_on_startup()
+    logger.info("Knowledge base pripravena (%d sekcii).", sections)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.add_job(refresh_dashboard_cache, 'interval', hours=2)
     scheduler.start()
-    logger.info("Naplanovana uloha update_database_task (kazdych 6 hodin).")
+    logger.info("Naplanovana uloha update_database_task - produkty z XML (kazdych 6 hodin).")
     logger.info("Naplanovana uloha refresh_dashboard_cache (kazde 2 hodiny).")
     refresh_dashboard_cache()
     asyncio.create_task(update_database_task())

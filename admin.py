@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Union
 from logger import emit_event
 from logger import log_message
+from knowledge_github import KNOWLEDGE_LOCAL_PATH, is_github_configured, sync_knowledge_base
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -74,6 +75,7 @@ def _require_dashboard_api_key(request: Request):
 
     if bearer_token != DASHBOARD_API_KEY and header_token != DASHBOARD_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid dashboard API key.")
+
 
 def _init_dashboard_storage():
     conn = sqlite3.connect(DB_PATH)
@@ -777,6 +779,34 @@ async def get_dashboard_snapshot(request: Request, refresh: bool = False):
 async def refresh_dashboard_snapshot(request: Request):
     _require_dashboard_api_key(request)
     return refresh_dashboard_cache()
+
+
+@router.post("/reindex-knowledge")
+async def reindex_knowledge(request: Request):
+    """
+    Stiahne knowledge_base.md z GitHubu a reindexuje do Qdrantu.
+    Volané z portálu cez BOT_REINDEX_WEBHOOK_URL po publikovaní zmien.
+    """
+    _require_dashboard_api_key(request)
+
+    if not is_github_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="GitHub knowledge sync is not configured on the bot.",
+        )
+
+    try:
+        sections_indexed = sync_knowledge_base(fetch_remote=True)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Reindex failed: {exc}") from exc
+
+    return {
+        "status": "success",
+        "sections_indexed": sections_indexed,
+        "source": "github",
+        "file_path": KNOWLEDGE_LOCAL_PATH,
+        "target": f"{os.getenv('GITHUB_OWNER', '')}/{os.getenv('GITHUB_REPO', '')}",
+    }
 
 @router.get("/dashboard/overview")
 async def get_dashboard_overview(request: Request):

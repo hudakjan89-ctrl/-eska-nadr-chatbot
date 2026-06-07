@@ -62,38 +62,44 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
     init_db()
     if not os.path.exists(filepath):
         logger.warning(f"Súbor {filepath} neexistuje. Vedomostná databáza sa nenačíta.")
-        return
+        return 0
 
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
+    return upsert_knowledge_content(content)
+
+
+def upsert_knowledge_content(content: str):
     # Rozsekáme text presne podľa tvojich nadpisov "### "
     sections = content.split('\n### ')
-    points =[]
-    
+    points = []
+
     # Preskočíme úplne prvý blok (hlavný nadpis dokumentu), ten nepotrebujeme ako samostatnú radu
     for section in sections[1:]:
         lines = section.split('\n')
         title = lines[0].strip()
         body = '\n'.join(lines[1:]).strip()
-        
+
         if title and body:
             # Spojíme nadpis a telo do jedného textu pre AI
             text_to_embed = f"Téma: {title}\nInformace: {body}"
             vector = model.encode(text_to_embed, show_progress_bar=False).tolist()
-            
+
             # Vytvoríme unikátne ID z názvu sekcie (aby sa pri reštarte nepridávali duplikáty)
             chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, title))
-            
+
             points.append(PointStruct(
                 id=chunk_id,
                 vector=vector,
                 payload={"title": title, "content": body}
             ))
-            
+
     if points:
         client.upsert(collection_name=COLLECTION_KNOWLEDGE, points=points)
         logger.info(f"Úspešne rozsekaných a uložených {len(points)} informačných blokov z manuálu.")
+
+    return len(points)
 
 def search_knowledge(query: str, top_k=3):
     # Vyhľadá len 3 najrelevantnejšie odseky z manuálu (extrémne šetrenie tokenov!)

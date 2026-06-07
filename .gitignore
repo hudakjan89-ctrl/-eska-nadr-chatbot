@@ -1,0 +1,7 @@
+knowledge_base.md
+.env
+.env.local
+__pycache__/
+*.pyc
+qdrant_db/
+*.db
