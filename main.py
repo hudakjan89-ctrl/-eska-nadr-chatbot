@@ -24,7 +24,7 @@ from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, search_knowledge
-from knowledge_github import load_knowledge_on_startup, is_github_configured
+from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import log_message, log_event, emit_event, build_user_hash
 from alerter import fire_alert
@@ -230,6 +230,7 @@ async def startup_event():
             os.getenv("GITHUB_REPO", "ceskanadrz-knowledge"),
             os.getenv("GITHUB_BRANCH", "main"),
         )
+        logger.info(github_token_hint())
     else:
         logger.warning(
             "GITHUB_TOKEN nie je nastavený — knowledge base sa načíta len z lokálnej cache."
