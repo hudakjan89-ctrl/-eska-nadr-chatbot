@@ -4,7 +4,7 @@
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
-  fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&display=swap';
   document.head.appendChild(fontLink);
 
   const cssLink = document.createElement('link');
@@ -12,19 +12,58 @@
   cssLink.href = `${BASE_URL}/static/css/style.css`;
   document.head.appendChild(cssLink);
 
+  const BOT_IMG = `${BASE_URL}/static/img/bot.png`;
+
+  const QA_ICONS = {
+    help_choose: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    shipping: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+    installation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+    size: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+    tech_question: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3"/><path d="M15 1v3"/><path d="M9 20v3"/><path d="M15 20v3"/><path d="M20 9h3"/><path d="M20 14h3"/><path d="M1 9h3"/><path d="M1 14h3"/></svg>',
+    contact: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+  };
+
+  const EMOJIS = ["😊","👍","🙏","💧","🏠","📦","✅","❓","📞","📧","🔧","💡"];
+
   const chatHTML = `
-    <div class="eniq-launcher" id="chatLauncher" aria-label="Otevřít chat" role="button" tabindex="0">
-      <div class="eniq-launcher-cta" id="launcherCta">Potřebujete poradit?</div>
+    <button id="chatLauncher" class="eniq-launcher" type="button" aria-label="Otevřít chat">
       <div class="eniq-launcher-avatar">
-        <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
+        <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
       </div>
+      <span class="launcher-online" aria-hidden="true"></span>
+      <span id="eniqBadge" class="eniq-badge">1</span>
+    </button>
+
+    <div id="invitePopup" class="invite-popup" role="dialog" aria-label="Pozvánka k chatu">
+      <button id="inviteClose" class="invite-close" type="button" aria-label="Zavřít pozvánku">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div class="invite-head">
+        <div class="invite-avatar">
+          <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
+          <span class="launcher-online" aria-hidden="true"></span>
+        </div>
+        <div class="invite-meta">
+          <div class="invite-name" id="inviteName">Virtuální asistent</div>
+          <div class="invite-status"><span class="status-dot"></span> <span id="inviteOnline">Online</span></div>
+        </div>
+      </div>
+      <div class="invite-text" id="inviteText">Dobrý den! Potřebujete poradit s výběrem nádrže, jímky nebo septiku? Rád pomohu.</div>
+      <button id="inviteCta" class="invite-cta" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+        <span id="inviteCtaLabel">Začít konverzaci</span>
+      </button>
     </div>
 
     <div class="eniq-panel" id="chatPanel" aria-label="Chat panel" role="dialog">
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-             <img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'">
+            <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Virtuální asistent</div>
@@ -34,43 +73,56 @@
             </div>
           </div>
         </div>
-        
         <button class="settings-btn" id="settingsBtn" type="button" aria-label="Nastavení">⋮</button>
-        
-        <div class="settings-menu" id="settingsMenu">
-          <div class="settings-item">
-            <div class="toggle-container">
-              <span class="settings-label" id="expandLabel">Rozšířit chat</span>
-              <div class="toggle-switch" id="expandToggle"><div class="toggle-slider"></div></div>
-            </div>
-          </div>
-          <div class="settings-item">
-            <div class="toggle-container">
-              <span class="settings-label" id="themeLabel">Tmavý režim</span>
-              <div class="toggle-switch" id="themeToggle"><div class="toggle-slider"></div></div>
-            </div>
-          </div>
-          <div class="settings-item">
-            <label class="settings-label" for="langSelect" id="langLabel">Jazyk</label>
-            <select class="lang-select" id="langSelect">
-                <option value="cs">🇨🇿 Čeština</option>
-                <option value="sk">🇸🇰 Slovenčina</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="uk">🇺🇦 Українська</option>
-            </select>
-          </div>
-        </div>
-
         <button class="close-btn" id="closeBtn" type="button" aria-label="Zavřít">×</button>
       </div>
-      
-      <div id="chat-box" class="chat-box"></div>
-      
-      <div class="input-area">
-        <input id="message-input" type="text" placeholder="Napište dotaz…" autocomplete="off" />
-        <button class="send-btn" id="sendBtn" type="button" aria-label="Odeslat">➤</button>
+
+      <div class="settings-menu" id="settingsMenu">
+        <div class="settings-item desktop-only-setting">
+          <span class="settings-label" id="expandLabel">Rozšířit chat</span>
+          <div class="toggle-switch" id="expandToggle"><div class="toggle-slider"></div></div>
+        </div>
+        <div class="settings-item">
+          <span class="settings-label" id="themeLabel">Tmavý režim</span>
+          <div class="toggle-switch" id="themeToggle"><div class="toggle-slider"></div></div>
+        </div>
+        <div class="settings-item">
+          <label class="settings-label" for="langSelect" id="langLabel">Jazyk</label>
+          <select class="lang-select" id="langSelect">
+            <option value="cs">🇨🇿 Čeština</option>
+            <option value="sk">🇸🇰 Slovenčina</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="uk">🇺🇦 Українська</option>
+          </select>
+        </div>
       </div>
-      
+
+      <div id="chat-box" class="chat-box"></div>
+
+      <div id="emojiPanel" class="emoji-panel"></div>
+
+      <div class="input-area">
+        <div class="composer-row">
+          <textarea id="message-input" rows="1" placeholder="Napište dotaz…" autocomplete="off"></textarea>
+          <button class="send-btn is-empty" id="sendBtn" type="button" aria-label="Odeslat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+        <div class="composer-actions">
+          <button id="emojiBtn" class="composer-btn" type="button" aria-label="Emoji" title="Emoji">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+              <line x1="9" y1="9" x2="9.01" y2="9"></line>
+              <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <div class="powered-by">
         Powered by <a href="https://eniq.eu/" target="_blank" rel="noopener">Eniq</a>
       </div>
@@ -93,8 +145,8 @@
   let flowTurnCount = 0;
   let contactCtaShownForFlow = null;
   let isRequestInFlight = false;
-  let launcherCtaTimer = null;
-  const LAUNCHER_CTA_DELAY_MS = 7000;
+  let inviteTimer = null;
+  const INVITE_DELAY_MS = 10000;
 
   function ensureSessionId() {
     if (sessionId) return sessionId;
@@ -152,10 +204,10 @@
   }
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:", launcherCta: "Potřebujete poradit?" },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", launcherCta: "Potrebujete poradiť?" },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", launcherCta: "Need advice?" },
-    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", launcherCta: "Потрібна порада?" }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", redirecting: "Přesměrovávám...", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:", inviteText: "Dobrý den! Potřebujete poradit s výběrem nádrže, jímky nebo septiku? Rád pomohu.", inviteCta: "Začít konverzaci", inviteOnline: "Online" },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", redirecting: "Presmerovávam...", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", inviteText: "Dobrý deň! Potrebujete poradiť s výberom nádrže, žumpy alebo septiku? Rád pomôžem.", inviteCta: "Začať konverzáciu", inviteOnline: "Online" },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", redirecting: "Redirecting...", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", inviteText: "Hello! Need help choosing a tank, cesspool or septic system? I'm here to help.", inviteCta: "Start conversation", inviteOnline: "Online" },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", redirecting: "Перенаправлення...", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", inviteText: "Доброго дня! Потрібна порада щодо резервуара, вигрібної ями чи септика? Допоможу.", inviteCta: "Почати розмову", inviteOnline: "Онлайн" }
   };
 
   const QUICK_ACTIONS = {
@@ -281,6 +333,10 @@
   const chatBox = document.getElementById("chat-box");
   const input = document.getElementById("message-input");
   const sendBtn = document.getElementById("sendBtn");
+  const invitePopup = document.getElementById("invitePopup");
+  const badge = document.getElementById("eniqBadge");
+  const emojiPanel = document.getElementById("emojiPanel");
+  const emojiBtn = document.getElementById("emojiBtn");
   
   function updateUI() {
     input.placeholder = UI_TEXT[selectedLang].placeholder;
@@ -288,7 +344,42 @@
     document.getElementById("themeLabel").textContent = UI_TEXT[selectedLang].themeLabel;
     document.getElementById("langLabel").textContent = UI_TEXT[selectedLang].langLabel;
     document.getElementById("langSelect").value = selectedLang;
-    document.getElementById("launcherCta").textContent = UI_TEXT[selectedLang].launcherCta;
+    const inviteText = document.getElementById("inviteText");
+    const inviteCtaLabel = document.getElementById("inviteCtaLabel");
+    const inviteOnline = document.getElementById("inviteOnline");
+    if (inviteText) inviteText.textContent = UI_TEXT[selectedLang].inviteText;
+    if (inviteCtaLabel) inviteCtaLabel.textContent = UI_TEXT[selectedLang].inviteCta;
+    if (inviteOnline) inviteOnline.textContent = UI_TEXT[selectedLang].inviteOnline;
+  }
+
+  function autoGrowInput() {
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+  }
+
+  function updateSendState() {
+    if (!sendBtn || !input) return;
+    sendBtn.classList.toggle("is-empty", !input.value.trim());
+  }
+
+  function buildEmojiPanel() {
+    if (!emojiPanel) return;
+    emojiPanel.innerHTML = "";
+    EMOJIS.forEach((em) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "emoji-item";
+      btn.dataset.emoji = em;
+      btn.textContent = em;
+      btn.addEventListener("click", () => {
+        input.value += em;
+        autoGrowInput();
+        updateSendState();
+        input.focus();
+      });
+      emojiPanel.appendChild(btn);
+    });
   }
 
   function setExpanded(expanded) {
@@ -299,8 +390,15 @@
 
   function setTheme(dark) {
     isDark = dark; localStorage.setItem("eniq_dark", dark);
-    if(dark) { panel.classList.add('dark-theme'); document.getElementById("themeToggle").classList.add('active'); }
-    else { panel.classList.remove('dark-theme'); document.getElementById("themeToggle").classList.remove('active'); }
+    if(dark) {
+      panel.classList.add('dark-mode');
+      document.getElementById("themeToggle").classList.add('active');
+      if (invitePopup) invitePopup.classList.add('invite-dark');
+    } else {
+      panel.classList.remove('dark-mode');
+      document.getElementById("themeToggle").classList.remove('active');
+      if (invitePopup) invitePopup.classList.remove('invite-dark');
+    }
   }
 
   function scrollToBottom() {
@@ -326,20 +424,42 @@
     });
   }
 
-  function hideLauncherCTA() {
-    if (launcherCtaTimer) clearTimeout(launcherCtaTimer);
-    launcherCtaTimer = null;
-    launcher.classList.remove("cta-visible");
+  function closeInvite(keepBadge) {
+    if (inviteTimer) clearTimeout(inviteTimer);
+    inviteTimer = null;
+    if (invitePopup) invitePopup.classList.remove("open");
+    if (!keepBadge && badge) badge.classList.remove("show");
   }
 
-  function scheduleLauncherCTA() {
-    hideLauncherCTA();
+  function showBadge() {
+    if (badge) badge.classList.add("show");
+  }
+
+  function nudgeLauncher() {
+    if (!launcher) return;
+    launcher.classList.remove("nudge");
+    void launcher.offsetWidth;
+    launcher.classList.add("nudge");
+    setTimeout(() => launcher.classList.remove("nudge"), 700);
+  }
+
+  function showInvite() {
+    if (!invitePopup || panel.classList.contains("open")) return;
+    if (sessionStorage.getItem("eniq_invite_seen") === "1") return;
+    sessionStorage.setItem("eniq_invite_seen", "1");
+    invitePopup.classList.add("open");
+    showBadge();
+    nudgeLauncher();
+  }
+
+  function scheduleInvite() {
+    closeInvite(true);
     if (panel.classList.contains("open")) return;
-    launcherCtaTimer = setTimeout(() => {
-      if (!panel.classList.contains("open")) {
-        launcher.classList.add("cta-visible");
-      }
-    }, LAUNCHER_CTA_DELAY_MS);
+    if (sessionStorage.getItem("eniq_invite_seen") === "1") {
+      showBadge();
+      return;
+    }
+    inviteTimer = setTimeout(showInvite, INVITE_DELAY_MS);
   }
 
   function normalizeIntentText(text) {
@@ -367,7 +487,12 @@
     if (quickActionsShown) return;
     const actionsRow = document.createElement("div"); actionsRow.className = "quick-actions-inline";
     QUICK_ACTIONS[selectedLang].forEach(item => {
-      const btn = document.createElement("button"); btn.className = "quick-action-btn"; btn.dataset.action = item.key; btn.textContent = item.label; actionsRow.appendChild(btn);
+      const btn = document.createElement("button");
+      btn.className = "quick-action-btn";
+      btn.dataset.action = item.key;
+      const icon = QA_ICONS[item.key] || "";
+      btn.innerHTML = `<span class="qa-icon">${icon}</span><span class="qa-label">${item.label}</span>`;
+      actionsRow.appendChild(btn);
     });
     chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottomIfNear();
     emitFrontendEvent("quick_actions_shown", {
@@ -377,21 +502,26 @@
 
   function showPageLinkButtons(pageUrl, imageUrl = null) {
     const row = document.createElement("div"); row.className = "page-link-prompt";
-    let imgHtml = "";
+
     if (imageUrl) {
-        imgHtml = `<div style="text-align: center; margin-bottom: 10px; background: transparent; padding: 0; border: none;">
-                      <img src="${imageUrl}" style="max-width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px;">
-                   </div>`;
+      const headerWrapper = document.createElement("div");
+      headerWrapper.className = "page-link-header-wrapper";
+      const imgEl = document.createElement("img");
+      imgEl.src = imageUrl;
+      imgEl.className = "page-link-product-img";
+      imgEl.alt = "";
+      headerWrapper.appendChild(imgEl);
+      row.appendChild(headerWrapper);
     }
+
     const text = document.createElement("div"); text.className = "page-link-text"; text.textContent = UI_TEXT[selectedLang].showOnPage;
     const buttons = document.createElement("div"); buttons.className = "page-link-buttons";
     const btnYes = document.createElement("button"); btnYes.className = "page-link-btn page-link-btn-yes"; btnYes.textContent = UI_TEXT[selectedLang].btnYes; btnYes.dataset.url = pageUrl;
     const btnNo = document.createElement("button"); btnNo.className = "page-link-btn page-link-btn-no"; btnNo.textContent = UI_TEXT[selectedLang].btnNo;
-    buttons.appendChild(btnYes); buttons.appendChild(btnNo); 
-    if(imgHtml) row.insertAdjacentHTML('beforeend', imgHtml);
-    row.appendChild(text); 
+    buttons.appendChild(btnYes); buttons.appendChild(btnNo);
+    row.appendChild(text);
     row.appendChild(buttons);
-    chatBox.appendChild(row); 
+    chatBox.appendChild(row);
     scrollToBottomIfNear();
     emitFrontendEvent("page_link_prompt_shown", {
       page_url: pageUrl,
@@ -403,10 +533,11 @@
   function renderContactCTA(introText, placeholderText) {
     contactCtaShownForFlow = activeFlow || "__generic__";
     const row = document.createElement("div"); row.className = "message bot cta-block";
-    row.innerHTML = `<div class="message-content" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-base);">
+    row.innerHTML = `<div class="message-avatar"><img src="${BOT_IMG}" alt="Bot" class="bot-img" onerror="this.style.display='none'"></div>
+        <div class="bubble-col"><div class="message-content">
         <div style="margin-bottom: 10px; font-size: 14px; line-height: 1.4;">${formatText(introText)}</div>
-        <button class="cta-contact-btn" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">${UI_TEXT[selectedLang].ctaBtn}</button>
-    </div>`;
+        <button class="cta-contact-btn" type="button">${UI_TEXT[selectedLang].ctaBtn}</button>
+    </div></div>`;
     chatBox.appendChild(row);
     scrollToBottomIfNear();
     emitFrontendEvent("contact_cta_shown", {
@@ -430,12 +561,12 @@
     let placeholderTxt = customPlaceholderText || UI_TEXT[selectedLang].cfNote;
 
     row.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-base, #111827); font-size: 14px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">👇 ${cfHeaderTxt}</div>
+      <div class="cf-header">👇 ${cfHeaderTxt}</div>
       <input type="text" class="cf-input cf-fname" placeholder="${UI_TEXT[selectedLang].cfFname}">
       <input type="email" class="cf-input cf-email" placeholder="${UI_TEXT[selectedLang].cfEmail}">
       <input type="tel" class="cf-input cf-phone" placeholder="${UI_TEXT[selectedLang].cfPhone}">
       <textarea class="cf-input cf-note" placeholder="${placeholderTxt}" rows="3" style="resize:vertical;"></textarea>
-      <button class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
+      <button type="button" class="cf-submit-btn">${UI_TEXT[selectedLang].cfBtn}</button>
     `;
     chatBox.appendChild(row);
     if (shouldAutoScroll) {
@@ -534,9 +665,13 @@
   function addMessage(text, type, showActions = false) {
     const row = document.createElement("div"); row.className = `message ${type}`;
     if (type === "bot") {
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
+      row.innerHTML = `<div class="message-avatar"><img src="${BOT_IMG}" alt="Bot" class="bot-img" onerror="this.style.display='none'"></div>`;
     }
-    const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text); row.appendChild(bubble); 
+    const bubbleCol = document.createElement("div");
+    bubbleCol.className = "bubble-col";
+    const bubble = document.createElement("div"); bubble.className = "message-content"; bubble.innerHTML = formatText(text);
+    bubbleCol.appendChild(bubble);
+    row.appendChild(bubbleCol);
     chatBox.appendChild(row);
     scrollToBottomIfNear();
     if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
@@ -556,15 +691,9 @@
   }
 
   function showSearching() {
-    const row = document.createElement("div"); row.className = "searching-row";
-    row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div><div class="searching-bubble"><span class="typing-text"></span><span class="typing-cursor">|</span></div>`;
+    const row = document.createElement("div"); row.className = "message bot searching-row";
+    row.innerHTML = `<div class="message-avatar"><img src="${BOT_IMG}" alt="Bot" class="bot-img" onerror="this.style.display='none'"></div><div class="message-content typing-indicator"><span></span><span></span><span></span></div>`;
     chatBox.appendChild(row); searchingEl = row; scrollToBottomIfNear();
-    const textEl = row.querySelector('.typing-text'); const text = UI_TEXT[selectedLang].searching; let index = 0;
-    typingInterval = setInterval(() => {
-      if (index < text.length) {
-        textEl.textContent += text[index++];
-      } else clearInterval(typingInterval);
-    }, 80);
   }
 
   function hideSearching() {
@@ -573,19 +702,35 @@
   }
 
   launcher.addEventListener("click", () => {
-    hideLauncherCTA();
+    closeInvite();
+    if (badge) badge.classList.remove("show");
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
     if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
   });
 
+  document.getElementById("inviteCta").addEventListener("click", () => {
+    closeInvite();
+    if (badge) badge.classList.remove("show");
+    panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
+    if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
+  });
+
+  document.getElementById("inviteClose").addEventListener("click", () => closeInvite(true));
+
   document.getElementById("closeBtn").addEventListener("click", () => { 
-    panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); document.getElementById("settingsMenu").classList.remove('active'); 
-    scheduleLauncherCTA();
+    panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); document.getElementById("settingsMenu").classList.remove('active');
+    if (emojiPanel) emojiPanel.classList.remove('open');
+    scheduleInvite();
   });
   
   document.getElementById("settingsBtn").addEventListener("click", () => document.getElementById("settingsMenu").classList.toggle('active'));
   document.getElementById("expandToggle").addEventListener("click", () => setExpanded(!isExpanded));
   document.getElementById("themeToggle").addEventListener("click", () => setTheme(!isDark));
+  if (emojiBtn) {
+    emojiBtn.addEventListener("click", () => {
+      if (emojiPanel) emojiPanel.classList.toggle('open');
+    });
+  }
   
   document.getElementById("langSelect").addEventListener("change", (e) => { 
     selectedLang = e.target.value; localStorage.setItem("eniq_lang", selectedLang); updateUI();
@@ -600,7 +745,7 @@
       isFirstMessage = false; 
       
       const key = actionBtn.dataset.action;
-      const quickText = actionBtn.textContent.trim();
+      const quickText = (actionBtn.querySelector(".qa-label") || actionBtn).textContent.trim();
       emitFrontendEvent("message_user", {
         action_key: key,
         query_text: quickText,
@@ -615,8 +760,10 @@
       contactCtaShownForFlow = null;
 
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
-      const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row); 
+      row.innerHTML = `<div class="message-avatar"><img src="${BOT_IMG}" alt="Bot" class="bot-img" onerror="this.style.display='none'"></div>`;
+      const bubbleCol = document.createElement("div"); bubbleCol.className = "bubble-col";
+      const bubble = document.createElement("div"); bubble.className = "message-content";
+      bubbleCol.appendChild(bubble); row.appendChild(bubbleCol); chatBox.appendChild(row);
       
       const instantAnswer = INSTANT_ANSWERS[selectedLang][key];
       streamText(bubble, instantAnswer).then(() => {
@@ -675,8 +822,10 @@
       hideSearching();
       
       const row = document.createElement("div"); row.className = `message bot`;
-      row.innerHTML = `<div class="message-avatar"><img src="${BASE_URL}/static/img/bot.png" alt="Bot" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; background: #ffffff; display: block;" onerror="this.style.display='none'"></div>`;
-      const bubble = document.createElement("div"); bubble.className = "message-content"; row.appendChild(bubble); chatBox.appendChild(row);
+      row.innerHTML = `<div class="message-avatar"><img src="${BOT_IMG}" alt="Bot" class="bot-img" onerror="this.style.display='none'"></div>`;
+      const bubbleCol = document.createElement("div"); bubbleCol.className = "bubble-col";
+      const bubble = document.createElement("div"); bubble.className = "message-content";
+      bubbleCol.appendChild(bubble); row.appendChild(bubbleCol); chatBox.appendChild(row);
       
       await streamText(bubble, data.response);
       
@@ -708,9 +857,13 @@
     const userText = input.value.trim(); if (!userText) return;
     ensureSessionId();
     isRequestInFlight = true;
-    sendBtn.disabled = true; input.disabled = true; input.value = ""; isFirstMessage = false;
-    
-    addMessage(userText, "user", false); 
+    sendBtn.disabled = true; input.disabled = true;
+    input.value = "";
+    autoGrowInput();
+    updateSendState();
+    isFirstMessage = false;
+
+    addMessage(userText, "user", false);
     scrollToBottom();
 
     if (isContactIntent(userText)) {
@@ -729,13 +882,23 @@
   }
 
   sendBtn.addEventListener("click", sendMessage);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  input.addEventListener("input", () => {
+    autoGrowInput();
+    updateSendState();
+  });
 
-  updateUI(); setExpanded(isExpanded); setTheme(isDark);
+  buildEmojiPanel();
+  updateUI(); setExpanded(isExpanded); setTheme(isDark); updateSendState();
   if (isChatOpen) { 
     panel.classList.add('open'); 
     if (chatBox.children.length === 0) { isFirstMessage = true; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); } 
   } else {
-    scheduleLauncherCTA();
+    scheduleInvite();
   }
 })();
