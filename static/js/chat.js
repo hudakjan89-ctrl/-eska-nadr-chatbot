@@ -1,6 +1,8 @@
 // static/js/chat.js
 (function() {
-  const BASE_URL = 'https://nadrz.eniq.eu'; 
+  const BASE_URL = 'https://nadrz.eniq.eu';
+  const WIDGET_VERSION = '9.3.1';
+  const assetV = `v=${WIDGET_VERSION}`;
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
@@ -9,10 +11,25 @@
 
   const cssLink = document.createElement('link');
   cssLink.rel = 'stylesheet';
-  cssLink.href = `${BASE_URL}/static/css/style.css`;
+  cssLink.setAttribute('data-eniq-widget-css', '1');
+  cssLink.href = `${BASE_URL}/static/css/style.css?${assetV}`;
   document.head.appendChild(cssLink);
 
-  const BOT_IMG = `${BASE_URL}/static/img/bot.png`;
+  const BOT_IMG = `${BASE_URL}/static/img/bot.png?${assetV}`;
+
+  async function syncWidgetAssetsFromServer() {
+    try {
+      const response = await fetch(`${BASE_URL}/widget/manifest.json`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const manifest = await response.json();
+      if (!manifest || !manifest.version) return;
+      const css = document.querySelector('link[data-eniq-widget-css]');
+      if (css) {
+        const nextHref = `${BASE_URL}/static/css/style.css?v=${manifest.version}`;
+        if (!css.href.includes(manifest.version)) css.href = nextHref;
+      }
+    } catch (_) {}
+  }
 
   const QA_ICONS = {
     help_choose: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
@@ -702,6 +719,7 @@
   }
 
   launcher.addEventListener("click", () => {
+    syncWidgetAssetsFromServer();
     closeInvite();
     if (badge) badge.classList.remove("show");
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
@@ -894,6 +912,7 @@
   });
 
   buildEmojiPanel();
+  syncWidgetAssetsFromServer();
   updateUI(); setExpanded(isExpanded); setTheme(isDark); updateSendState();
   if (isChatOpen) { 
     panel.classList.add('open'); 

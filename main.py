@@ -12,9 +12,11 @@ import httpx
 import asyncio
 import unicodedata
 import re
+from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -40,6 +42,17 @@ logger = logging.getLogger("ceska_nadrz.main")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
+WIDGET_VERSION = "9.3.1"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
+WIDGET_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "CDN-Cache-Control": "no-store",
+    "Surrogate-Control": "no-store",
+}
+
 app = FastAPI()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -55,6 +68,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/static/js/chat.js", include_in_schema=False)
+async def widget_chat_js():
+    """Widget script — always fresh (no CDN/browser long-cache)."""
+    headers = {**WIDGET_NO_CACHE_HEADERS, "X-Widget-Version": WIDGET_VERSION}
+    return FileResponse(STATIC_DIR / "js" / "chat.js", media_type="application/javascript", headers=headers)
+
+
+@app.get("/static/css/style.css", include_in_schema=False)
+async def widget_style_css():
+    """Widget styles — always fresh."""
+    return FileResponse(STATIC_DIR / "css" / "style.css", media_type="text/css", headers=WIDGET_NO_CACHE_HEADERS)
+
+
+@app.get("/widget/manifest.json", include_in_schema=False)
+async def widget_manifest():
+    """Version manifest for auto asset refresh on customer sites."""
+    return JSONResponse(
+        {
+            "version": WIDGET_VERSION,
+            "css": f"/static/css/style.css?v={WIDGET_VERSION}",
+            "js": f"/static/js/chat.js?v={WIDGET_VERSION}",
+        },
+        headers=WIDGET_NO_CACHE_HEADERS,
+    )
+
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -210,6 +250,37 @@ async def update_database_task():
         logger.exception("Kriticka chyba v opakovanej ulohe update_database_task!")
         fire_alert(f"Zlyhal update_database_task feed!\nChyba: {str(e)}")
 
+
+async def purge_cloudflare_widget_cache():
+    """Po redeployi vymaže Cloudflare cache widgetu — zákazník nemusí nič meniť."""
+    zone_id = os.getenv("CLOUDFLARE_ZONE_ID", "").strip()
+    api_token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    if not zone_id or not api_token:
+        logger.info(
+            "Cloudflare purge preskočený (CLOUDFLARE_ZONE_ID / CLOUDFLARE_API_TOKEN nie sú nastavené)."
+        )
+        return
+
+    files = [
+        f"{WIDGET_PUBLIC_BASE}/static/js/chat.js",
+        f"{WIDGET_PUBLIC_BASE}/static/css/style.css",
+        f"{WIDGET_PUBLIC_BASE}/widget/manifest.json",
+    ]
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                f"https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache",
+                headers={"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"},
+                json={"files": files},
+            )
+        if response.status_code == 200 and response.json().get("success"):
+            logger.info("Cloudflare cache widgetu vymazaná: %s", ", ".join(files))
+        else:
+            logger.warning("Cloudflare purge zlyhal (%s): %s", response.status_code, response.text[:300])
+    except Exception as exc:
+        logger.warning("Cloudflare purge exception: %s", exc)
+
+
 @app.on_event("startup")
 async def startup_event():
     if resend_configured():
@@ -246,10 +317,16 @@ async def startup_event():
     logger.info("Naplanovana uloha refresh_dashboard_cache (kazde 2 hodiny).")
     refresh_dashboard_cache()
     asyncio.create_task(update_database_task())
+    asyncio.create_task(purge_cloudflare_widget_cache())
+    logger.info("Widget verzia: %s", WIDGET_VERSION)
 
 @app.get("/")
 async def health_check():
-    return {"status": "Česká nádrž RAG Bot is running", "version": "9.2 (Strict Destovka Rules)"}
+    return {
+        "status": "Česká nádrž RAG Bot is running",
+        "version": WIDGET_VERSION,
+        "widget_version": WIDGET_VERSION,
+    }
 
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
