@@ -17,7 +17,7 @@ COPY . .
 
 # Overenie, že widget assets obsahujú nový dizajn (build zlyhá ak sú staré)
 RUN grep -q "Premium edition" static/css/style.css && \
-    grep -q "Source Sans 3" static/js/chat.js && \
+    grep -q "invitePopup" static/js/chat.js && \
     test $(wc -c < static/css/style.css) -gt 40000
 
 EXPOSE 8000
