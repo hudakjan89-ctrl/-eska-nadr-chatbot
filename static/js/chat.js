@@ -1,8 +1,9 @@
 // static/js/chat.js
 (function() {
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.3.1';
+  const WIDGET_VERSION = '9.3.2';
   const assetV = `v=${WIDGET_VERSION}`;
+  const WIDGET_CSS_URL = `${BASE_URL}/widget/${WIDGET_VERSION}/style.css`;
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
@@ -12,7 +13,7 @@
   const cssLink = document.createElement('link');
   cssLink.rel = 'stylesheet';
   cssLink.setAttribute('data-eniq-widget-css', '1');
-  cssLink.href = `${BASE_URL}/static/css/style.css?${assetV}`;
+  cssLink.href = WIDGET_CSS_URL;
   document.head.appendChild(cssLink);
 
   const BOT_IMG = `${BASE_URL}/static/img/bot.png?${assetV}`;
@@ -25,7 +26,7 @@
       if (!manifest || !manifest.version) return;
       const css = document.querySelector('link[data-eniq-widget-css]');
       if (css) {
-        const nextHref = `${BASE_URL}/static/css/style.css?v=${manifest.version}`;
+        const nextHref = `${BASE_URL}/widget/${manifest.version}/style.css`;
         if (!css.href.includes(manifest.version)) css.href = nextHref;
       }
     } catch (_) {}

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -42,7 +42,7 @@ logger = logging.getLogger("ceska_nadrz.main")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.3.1"
+WIDGET_VERSION = "9.3.2"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -52,6 +52,21 @@ WIDGET_NO_CACHE_HEADERS = {
     "CDN-Cache-Control": "no-store",
     "Surrogate-Control": "no-store",
 }
+
+
+def _widget_asset_headers(extra: Optional[dict] = None) -> dict:
+    headers = dict(WIDGET_NO_CACHE_HEADERS)
+    headers["X-Widget-Version"] = WIDGET_VERSION
+    if extra:
+        headers.update(extra)
+    return headers
+
+
+def _read_widget_asset(path: Path) -> bytes:
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Widget asset missing: {path.name}")
+    return path.read_bytes()
+
 
 app = FastAPI()
 
@@ -71,29 +86,73 @@ app.add_middleware(
 
 
 @app.get("/static/js/chat.js", include_in_schema=False)
-async def widget_chat_js():
-    """Widget script — always fresh (no CDN/browser long-cache)."""
-    headers = {**WIDGET_NO_CACHE_HEADERS, "X-Widget-Version": WIDGET_VERSION}
-    return FileResponse(STATIC_DIR / "js" / "chat.js", media_type="application/javascript", headers=headers)
+async def widget_chat_bootstrap():
+    body = (
+        "(function(w,d){"
+        "if(w.__ENIQ_WIDGET__)return;"
+        "w.__ENIQ_WIDGET__=1;"
+        f"var s=d.createElement('script');"
+        f"s.src='{WIDGET_PUBLIC_BASE}/widget/{WIDGET_VERSION}/chat.js';"
+        "s.async=true;"
+        "d.head.appendChild(s);"
+        "})(window,document);"
+    )
+    return Response(content=body, media_type="application/javascript", headers=_widget_asset_headers())
+
+
+@app.get(f"/widget/{WIDGET_VERSION}/chat.js", include_in_schema=False)
+async def widget_core_js():
+    return Response(
+        content=_read_widget_asset(STATIC_DIR / "js" / "chat.js"),
+        media_type="application/javascript",
+        headers=_widget_asset_headers(),
+    )
+
+
+@app.get(f"/widget/{WIDGET_VERSION}/style.css", include_in_schema=False)
+async def widget_core_css():
+    return Response(
+        content=_read_widget_asset(STATIC_DIR / "css" / "style.css"),
+        media_type="text/css",
+        headers=_widget_asset_headers(),
+    )
 
 
 @app.get("/static/css/style.css", include_in_schema=False)
-async def widget_style_css():
-    """Widget styles — always fresh."""
-    return FileResponse(STATIC_DIR / "css" / "style.css", media_type="text/css", headers=WIDGET_NO_CACHE_HEADERS)
+async def widget_style_css_legacy():
+    return Response(
+        content=_read_widget_asset(STATIC_DIR / "css" / "style.css"),
+        media_type="text/css",
+        headers=_widget_asset_headers(),
+    )
 
 
 @app.get("/widget/manifest.json", include_in_schema=False)
 async def widget_manifest():
-    """Version manifest for auto asset refresh on customer sites."""
     return JSONResponse(
         {
             "version": WIDGET_VERSION,
-            "css": f"/static/css/style.css?v={WIDGET_VERSION}",
-            "js": f"/static/js/chat.js?v={WIDGET_VERSION}",
+            "css": f"/widget/{WIDGET_VERSION}/style.css",
+            "js": f"/widget/{WIDGET_VERSION}/chat.js",
+            "bootstrap": "/static/js/chat.js",
         },
         headers=WIDGET_NO_CACHE_HEADERS,
     )
+
+
+@app.get("/widget/debug", include_in_schema=False)
+async def widget_debug():
+    chat_bytes = _read_widget_asset(STATIC_DIR / "js" / "chat.js")
+    css_bytes = _read_widget_asset(STATIC_DIR / "css" / "style.css")
+    return {
+        "widget_version": WIDGET_VERSION,
+        "chat_js_bytes": len(chat_bytes),
+        "css_bytes": len(css_bytes),
+        "chat_js_preview": chat_bytes[:120].decode("utf-8", errors="replace"),
+        "css_preview": css_bytes[:120].decode("utf-8", errors="replace"),
+        "premium_css": b"Premium edition" in css_bytes,
+        "premium_js": b"Source Sans 3" in chat_bytes,
+    }
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -265,6 +324,8 @@ async def purge_cloudflare_widget_cache():
         f"{WIDGET_PUBLIC_BASE}/static/js/chat.js",
         f"{WIDGET_PUBLIC_BASE}/static/css/style.css",
         f"{WIDGET_PUBLIC_BASE}/widget/manifest.json",
+        f"{WIDGET_PUBLIC_BASE}/widget/{WIDGET_VERSION}/chat.js",
+        f"{WIDGET_PUBLIC_BASE}/widget/{WIDGET_VERSION}/style.css",
     ]
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
