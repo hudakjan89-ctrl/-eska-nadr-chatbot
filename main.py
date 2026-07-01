@@ -171,7 +171,7 @@ async def widget_debug():
         "premium_css": b"Premium edition" in css_bytes,
         "premium_js": b"invitePopup" in chat_bytes,
         "embed_use_this": f"{WIDGET_PUBLIC_BASE}/chat-widget.js",
-        "embed_ok_if_premium": (b"Premium edition" in css_bytes and b"Source Sans 3" in chat_bytes),
+        "embed_ok_if_premium": (b"Premium edition" in css_bytes and b"invitePopup" in chat_bytes),
     }
 
 
