@@ -42,7 +42,7 @@ logger = logging.getLogger("ceska_nadrz.main")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.3.2"
+WIDGET_VERSION = "9.3.3"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -85,9 +85,8 @@ app.add_middleware(
 )
 
 
-@app.get("/static/js/chat.js", include_in_schema=False)
-async def widget_chat_bootstrap():
-    body = (
+def _widget_bootstrap_js() -> str:
+    return (
         "(function(w,d){"
         "if(w.__ENIQ_WIDGET__)return;"
         "w.__ENIQ_WIDGET__=1;"
@@ -97,7 +96,25 @@ async def widget_chat_bootstrap():
         "d.head.appendChild(s);"
         "})(window,document);"
     )
-    return Response(content=body, media_type="application/javascript", headers=_widget_asset_headers())
+
+
+@app.get("/chat-widget.js", include_in_schema=False)
+async def widget_embed_js():
+    """Nová embed URL — Cloudflare ju ešte necachuje. Použiť na ceskanadrz.cz."""
+    return Response(
+        content=_widget_bootstrap_js(),
+        media_type="application/javascript",
+        headers=_widget_asset_headers(),
+    )
+
+
+@app.get("/static/js/chat.js", include_in_schema=False)
+async def widget_chat_bootstrap():
+    return Response(
+        content=_widget_bootstrap_js(),
+        media_type="application/javascript",
+        headers=_widget_asset_headers(),
+    )
 
 
 @app.get(f"/widget/{WIDGET_VERSION}/chat.js", include_in_schema=False)
@@ -134,7 +151,8 @@ async def widget_manifest():
             "version": WIDGET_VERSION,
             "css": f"/widget/{WIDGET_VERSION}/style.css",
             "js": f"/widget/{WIDGET_VERSION}/chat.js",
-            "bootstrap": "/static/js/chat.js",
+            "bootstrap": "/chat-widget.js",
+        "embed_recommended": f"{WIDGET_PUBLIC_BASE}/chat-widget.js",
         },
         headers=WIDGET_NO_CACHE_HEADERS,
     )
@@ -152,10 +170,14 @@ async def widget_debug():
         "css_preview": css_bytes[:120].decode("utf-8", errors="replace"),
         "premium_css": b"Premium edition" in css_bytes,
         "premium_js": b"Source Sans 3" in chat_bytes,
+        "embed_use_this": f"{WIDGET_PUBLIC_BASE}/chat-widget.js",
+        "embed_ok_if_premium": (b"Premium edition" in css_bytes and b"Source Sans 3" in chat_bytes),
     }
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+img_dir = STATIC_DIR / "img"
+if img_dir.is_dir():
+    app.mount("/static/img", StaticFiles(directory=str(img_dir)), name="static-img")
 
 sessions = {}
 recommended_urls = {}  # session_id -> list of already recommended product URLs
@@ -321,6 +343,7 @@ async def purge_cloudflare_widget_cache():
         return
 
     files = [
+        f"{WIDGET_PUBLIC_BASE}/chat-widget.js",
         f"{WIDGET_PUBLIC_BASE}/static/js/chat.js",
         f"{WIDGET_PUBLIC_BASE}/static/css/style.css",
         f"{WIDGET_PUBLIC_BASE}/widget/manifest.json",

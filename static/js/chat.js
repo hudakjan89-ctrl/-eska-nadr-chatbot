@@ -1,7 +1,7 @@
 // static/js/chat.js
 (function() {
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.3.2';
+  const WIDGET_VERSION = '9.3.3';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/${WIDGET_VERSION}/style.css`;
 
