@@ -1,9 +1,9 @@
 // static/js/chat.js
 (function() {
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.3.3';
+  const WIDGET_VERSION = '9.3.4';
   const assetV = `v=${WIDGET_VERSION}`;
-  const WIDGET_CSS_URL = `${BASE_URL}/widget/${WIDGET_VERSION}/style.css`;
+  const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
@@ -26,7 +26,7 @@
       if (!manifest || !manifest.version) return;
       const css = document.querySelector('link[data-eniq-widget-css]');
       if (css) {
-        const nextHref = `${BASE_URL}/widget/${manifest.version}/style.css`;
+        const nextHref = `${BASE_URL}/widget/style.css?v=${manifest.version}`;
         if (!css.href.includes(manifest.version)) css.href = nextHref;
       }
     } catch (_) {}
@@ -146,8 +146,21 @@
       </div>
     </div>
   `;
+  if (document.getElementById("chatLauncher")) return;
+  if (!document.body) {
+    document.addEventListener("DOMContentLoaded", function onReady() {
+      document.removeEventListener("DOMContentLoaded", onReady);
+      if (!document.getElementById("chatLauncher") && document.body) {
+        document.body.insertAdjacentHTML("beforeend", chatHTML);
+        bootWidget();
+      }
+    });
+    return;
+  }
   document.body.insertAdjacentHTML('beforeend', chatHTML);
+  bootWidget();
 
+  function bootWidget() {
   let sessionId = localStorage.getItem("session_id") || null;
   let selectedLang = localStorage.getItem("eniq_lang") || "cs";
   let isExpanded = localStorage.getItem("eniq_expanded") === "true";
@@ -920,5 +933,6 @@
     if (chatBox.children.length === 0) { isFirstMessage = true; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); } 
   } else {
     scheduleInvite();
+  }
   }
 })();
