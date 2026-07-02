@@ -88,7 +88,7 @@ def upsert_knowledge_content(content: str):
             items.append({"title": title, "body": body})
             
     if not items:
-        return
+        return 0
 
     texts = [f"Téma: {item['title']}\nInformace: {item['body']}" for item in items]
     logger.info(f"Generujem embeddingy pre {len(items)} informačných blokov...")
