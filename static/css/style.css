@@ -31,42 +31,45 @@
     font-family: "Source Sans 3", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-/* ============== Launcher (BUTTON) ============== */
-button#chatLauncher.eniq-launcher,
-.eniq-launcher{
+/* ============== Launcher wrap (fixed layer, host-safe) ============== */
+.eniq-launcher-wrap{
     position: fixed !important;
     right: 24px !important;
     bottom: 24px !important;
     width: 66px !important;
     height: 66px !important;
+    z-index: 2147483640 !important;
+    pointer-events: none;
+}
+
+/* ============== Launcher (BUTTON) ============== */
+.eniq-launcher-wrap .eniq-launcher,
+.eniq-launcher{
+    position: relative !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 66px !important;
+    height: 66px !important;
     min-width: 66px !important;
     min-height: 66px !important;
-    max-width: none !important;
+    max-width: 66px !important;
     border-radius: 50% !important;
     background: #ffffff !important;
-    background-image: none !important;
     border: none !important;
-    box-shadow: none !important;
-    filter: drop-shadow(0 8px 22px rgba(var(--brand-rgb), 0.38));
+    box-shadow: 0 10px 28px -6px rgba(var(--brand-rgb), 0.45), 0 4px 12px rgba(0,0,0,0.12) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 0 !important;
+    padding: 5px !important;
     margin: 0 !important;
     cursor: pointer !important;
-    z-index: 2147483640 !important;
-    animation: float 5s ease-in-out infinite;
     pointer-events: auto !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    overflow: hidden !important;
+    animation: float 5s ease-in-out infinite;
+    transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+    overflow: visible !important;
     outline: none !important;
     appearance: none !important;
     -webkit-appearance: none !important;
-    clip-path: circle(50% at 50% 50%);
-    -webkit-clip-path: circle(50% at 50% 50%);
-    isolation: isolate;
-    transition: transform .3s var(--ease), filter .3s var(--ease);
 }
 
 /* brand ring */
@@ -114,7 +117,7 @@ button#chatLauncher.eniq-launcher,
 .eniq-launcher:hover{
     animation-play-state: paused;
     transform: scale(1.08);
-    filter: drop-shadow(0 12px 28px rgba(var(--brand-rgb), 0.5));
+    box-shadow: 0 16px 36px -8px rgba(var(--brand-rgb), 0.6) !important;
 }
 .eniq-launcher:active{ transform: scale(.96); }
 
@@ -124,23 +127,10 @@ button#chatLauncher.eniq-launcher,
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    overflow: hidden;
-    background: #ffffff;
-    padding: 3px;
-    box-sizing: border-box;
 }
 
 .bot-img{ width: 100%; height: 100%; object-fit: cover; }
-.eniq-launcher .bot-img{
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    border-radius: 50%;
-    background: transparent;
-    display: block;
-    transform: scale(1.08);
-}
+.eniq-launcher .bot-img{ object-fit: contain; }
 
 .eniq-badge{
     position: absolute;
@@ -1332,7 +1322,21 @@ body.eniq-dark .invite-popup{ }
 
 /* ============== Mobile — full screen ============== */
 @media (max-width: 600px){
-    .eniq-launcher{ width: 58px; height: 58px; bottom: 16px; right: 16px; padding: 5px; }
+    .eniq-launcher-wrap{
+        width: 58px !important;
+        height: 58px !important;
+        right: 16px !important;
+        bottom: 16px !important;
+    }
+    .eniq-launcher-wrap .eniq-launcher,
+    .eniq-launcher{
+        width: 58px !important;
+        height: 58px !important;
+        min-width: 58px !important;
+        min-height: 58px !important;
+        max-width: 58px !important;
+        padding: 5px !important;
+    }
     .desktop-only-setting { display: none !important; }
     .eniq-panel{
         top: 0 !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
@@ -1340,7 +1344,7 @@ body.eniq-dark .invite-popup{ }
         max-height: none !important; min-height: 0 !important; max-width: none;
         border-radius: 0; border: none; z-index: 2147483647 !important;
     }
-    .eniq-panel.open ~ .eniq-launcher { display: none !important; }
+    .eniq-panel.open ~ .eniq-launcher-wrap { display: none !important; }
     .chat-header { border-radius: 0; padding: 16px; }
     .settings-menu{ max-height: calc(100% - 80px); }
     #message-input{ font-size: 16px; }   /* avoid iOS zoom on focus */

@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.4';
+  const WIDGET_VERSION = '9.4.5';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -47,6 +47,7 @@
   const EMOJIS = ["😊","👍","🙏","💧","🏠","📦","✅","❓","📞","📧","🔧","💡","😀","😄","🙂","👏","❤️","⭐","🚚","🛒"];
 
   const chatHTML = `
+    <div class="eniq-launcher-wrap">
     <button id="chatLauncher" class="eniq-launcher" type="button" aria-label="Otevřít chat">
       <div class="eniq-launcher-avatar">
         <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
@@ -54,6 +55,7 @@
       <span class="launcher-online" aria-hidden="true"></span>
       <span id="eniqBadge" class="eniq-badge">1</span>
     </button>
+    </div>
 
     <div id="invitePopup" class="invite-popup" role="dialog" aria-label="Pozvánka k chatu">
       <button id="inviteClose" class="invite-close" type="button" aria-label="Zavřít pozvánku">
