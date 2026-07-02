@@ -56,7 +56,10 @@
     pointer-events: auto !important;
     visibility: visible !important;
     opacity: 1 !important;
-    overflow: visible !important;
+    overflow: hidden !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
     transition: transform .3s var(--ease), box-shadow .3s var(--ease);
 }
 
@@ -112,13 +115,21 @@
 .eniq-launcher-avatar{
     width: 100%;
     height: 100%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #ffffff;
 }
 
 .bot-img{ width: 100%; height: 100%; object-fit: cover; }
-.eniq-launcher .bot-img{ object-fit: contain; }
+.eniq-launcher .bot-img{
+    object-fit: cover;
+    border-radius: 50%;
+    background: transparent;
+    display: block;
+}
 
 .eniq-badge{
     position: absolute;
@@ -434,6 +445,11 @@
     width: auto;
     max-width: none;
     min-width: 0;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
 }
 
 .quick-actions-inline{
@@ -458,8 +474,7 @@
     background: #ffffff;
     color: var(--ink);
     border: 1px solid var(--line);
-    box-shadow: 0 1px 3px rgba(18,18,40,0.05);
-    transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease);
+    transition: border-color .2s var(--ease), background .2s var(--ease);
     animation: chipIn .45s var(--ease) both;
     text-align: center;
     white-space: nowrap;
@@ -479,10 +494,10 @@
 .quick-action-btn .qa-icon svg{ width: 15px; height: 15px; display:block; }
 
 .quick-action-btn:hover{
-    transform: translateY(-2px);
-    background: rgba(var(--brand-rgb), 0.05);
-    border-color: rgba(var(--brand-rgb), 0.5);
-    box-shadow: 0 9px 20px -8px rgba(var(--brand-rgb), 0.4);
+    transform: none;
+    background: #f8f9fb !important;
+    border-color: rgba(var(--brand-rgb), 0.28);
+    box-shadow: none !important;
 }
 .quick-action-btn:hover .qa-icon{ color: var(--brand-deep); }
 .quick-action-btn:active{ transform: translateY(0) scale(.97); }
