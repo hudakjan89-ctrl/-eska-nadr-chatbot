@@ -114,7 +114,7 @@ button#chatLauncher.eniq-launcher,
 .eniq-launcher:hover{
     animation-play-state: paused;
     transform: scale(1.08);
-    box-shadow: 0 16px 36px -8px rgba(var(--brand-rgb), 0.6);
+    filter: drop-shadow(0 12px 28px rgba(var(--brand-rgb), 0.5));
 }
 .eniq-launcher:active{ transform: scale(.96); }
 
