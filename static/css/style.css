@@ -490,6 +490,12 @@
     box-sizing: border-box;
 }
 
+/* expanded: align quick chips with bot message column, not full panel width */
+.eniq-panel.expanded .quick-actions-inline{
+    width: 80%;
+    padding-right: 0;
+}
+
 .quick-action-btn{
     display: flex;
     flex-direction: row;
