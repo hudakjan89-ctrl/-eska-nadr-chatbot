@@ -425,6 +425,7 @@
 }
 
 .message.bot .message-content{
+    width: fit-content;
     background: var(--card);
     border: 1px solid var(--line);
     color: var(--ink);
@@ -484,16 +485,14 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
-    margin: 6px 0 14px 0;
-    padding: 0 10px 0 42px;
+    margin: 8px 0 0;
+    padding: 0;
     width: 100%;
     box-sizing: border-box;
 }
 
-/* expanded: align quick chips with bot message column, not full panel width */
-.eniq-panel.expanded .quick-actions-inline{
-    width: 80%;
-    padding-right: 0;
+.bubble-col .quick-actions-inline{
+    margin-bottom: 4px;
 }
 
 .quick-action-btn{
@@ -935,8 +934,12 @@
 .eniq-panel.dark-mode .settings-action:hover{ background: #2a2330; }
 
 /* ============== Message timestamps ============== */
-.bubble-col{ display: flex; flex-direction: column; max-width: 82%; align-items: flex-start; }
-.message.user .bubble-col{ align-items: flex-end; }
+.bubble-col{
+    display: inline-grid;
+    max-width: 82%;
+    align-items: stretch;
+}
+.message.user .bubble-col{ justify-items: end; }
 .message .message-content{ max-width: 100%; }
 .message-time{
     font-size: 10px;

@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.9';
+  const WIDGET_VERSION = '9.4.10';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -615,8 +615,8 @@
     return formatted.replace(/\n/g, '<br>');
   }
 
-  function showQuickActionsInChat() {
-    if (quickActionsShown) return;
+  function showQuickActionsInChat(bubbleCol) {
+    if (quickActionsShown || !bubbleCol) return;
     const actionsRow = document.createElement("div"); actionsRow.className = "quick-actions-inline";
     QUICK_ACTIONS[selectedLang].forEach(item => {
       const btn = document.createElement("button");
@@ -626,7 +626,7 @@
       btn.innerHTML = `<span class="qa-icon">${icon}</span><span class="qa-label">${item.label}</span>`;
       actionsRow.appendChild(btn);
     });
-    chatBox.appendChild(actionsRow); quickActionsShown = true; scrollToBottomIfNear();
+    bubbleCol.appendChild(actionsRow); quickActionsShown = true; scrollToBottomIfNear();
     emitFrontendEvent("quick_actions_shown", {
       actions: QUICK_ACTIONS[selectedLang].map(item => item.key)
     });
@@ -806,7 +806,7 @@
     row.appendChild(bubbleCol);
     chatBox.appendChild(row);
     scrollToBottomIfNear();
-    if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat();
+    if (type === "bot" && showActions && isFirstMessage && !quickActionsShown) showQuickActionsInChat(bubbleCol);
     return row;
   }
 
