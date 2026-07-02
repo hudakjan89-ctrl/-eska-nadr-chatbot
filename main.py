@@ -42,7 +42,7 @@ logger = logging.getLogger("ceska_nadrz.main")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.3.6"
+WIDGET_VERSION = "9.4.0"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -139,6 +139,18 @@ BOT_ICON_SVG = (
     '<path fill="#005b9f" d="M32 14c8 12 16 20 16 28a16 16 0 0 1-32 0c0-8 8-16 16-28z"/>'
     "</svg>"
 )
+
+
+@app.get("/static/img/bot.svg", include_in_schema=False)
+async def widget_bot_svg():
+    icon_path = STATIC_DIR / "img" / "bot.svg"
+    if icon_path.is_file():
+        return FileResponse(icon_path, media_type="image/svg+xml", headers=_widget_asset_headers())
+    return Response(
+        content=BOT_ICON_SVG.encode("utf-8"),
+        media_type="image/svg+xml",
+        headers=_widget_asset_headers(),
+    )
 
 
 @app.get("/static/img/bot.png", include_in_schema=False)

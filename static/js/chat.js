@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.3.6';
+  const WIDGET_VERSION = '9.4.0';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -19,7 +19,7 @@
   cssLink.href = WIDGET_CSS_URL;
   if (document.head) document.head.appendChild(cssLink);
 
-  const BOT_IMG = `${BASE_URL}/static/img/bot.png?${assetV}`;
+  const BOT_IMG = `${BASE_URL}/static/img/bot.svg?${assetV}`;
 
   async function syncWidgetAssetsFromServer() {
     try {
@@ -44,12 +44,12 @@
     contact: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
   };
 
-  const EMOJIS = ["😊","👍","🙏","💧","🏠","📦","✅","❓","📞","📧","🔧","💡"];
+  const EMOJIS = ["😊","👍","🙏","💧","🏠","📦","✅","❓","📞","📧","🔧","💡","😀","😄","🙂","👏","❤️","⭐","🚚","🛒"];
 
   const chatHTML = `
     <button id="chatLauncher" class="eniq-launcher" type="button" aria-label="Otevřít chat">
       <div class="eniq-launcher-avatar">
-        <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
+        <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
       </div>
       <span class="launcher-online" aria-hidden="true"></span>
       <span id="eniqBadge" class="eniq-badge">1</span>
@@ -63,7 +63,7 @@
       </button>
       <div class="invite-head">
         <div class="invite-avatar">
-          <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
+          <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
           <span class="launcher-online" aria-hidden="true"></span>
         </div>
         <div class="invite-meta">
@@ -84,7 +84,7 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-            <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img" onerror="this.style.display='none'">
+            <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Virtuální asistent</div>
@@ -100,52 +100,114 @@
 
       <div class="settings-menu" id="settingsMenu">
         <div class="settings-item desktop-only-setting">
-          <span class="settings-label" id="expandLabel">Rozšířit chat</span>
-          <div class="toggle-switch" id="expandToggle"><div class="toggle-slider"></div></div>
+          <div class="settings-label" id="expandLabel">Rozšířit chat</div>
+          <div class="toggle-container"><div id="expandToggle" class="toggle-switch"><div class="toggle-slider"></div></div></div>
         </div>
         <div class="settings-item">
-          <span class="settings-label" id="themeLabel">Tmavý režim</span>
-          <div class="toggle-switch" id="themeToggle"><div class="toggle-slider"></div></div>
+          <div class="settings-label" id="themeLabel">Tmavý režim</div>
+          <div class="toggle-container"><div id="themeToggle" class="toggle-switch"><div class="toggle-slider"></div></div></div>
         </div>
         <div class="settings-item">
-          <label class="settings-label" for="langSelect" id="langLabel">Jazyk</label>
-          <select class="lang-select" id="langSelect">
-            <option value="cs">🇨🇿 Čeština</option>
-            <option value="sk">🇸🇰 Slovenčina</option>
-            <option value="en">🇬🇧 English</option>
-            <option value="uk">🇺🇦 Українська</option>
+          <div class="settings-label" id="animLabel">Animace a efekty</div>
+          <div class="toggle-container"><div id="animToggle" class="toggle-switch active"><div class="toggle-slider"></div></div></div>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label" id="soundLabel">Zvuk zpráv</div>
+          <div class="toggle-container"><div id="soundToggle" class="toggle-switch active"><div class="toggle-slider"></div></div></div>
+        </div>
+        <div class="settings-item">
+          <div class="settings-label" id="fontLabel">Velikost písma</div>
+          <select id="fontSelect" class="lang-select">
+            <option value="sm">Malé</option>
+            <option value="md" selected>Střední</option>
+            <option value="lg">Velké</option>
           </select>
         </div>
+        <div class="settings-item">
+          <div class="settings-label" id="langLabel">Jazyk</div>
+          <select class="lang-select" id="langSelect">
+            <option value="cs">Čeština</option>
+            <option value="sk">Slovenčina</option>
+            <option value="en">English</option>
+            <option value="uk">Українська</option>
+          </select>
+        </div>
+        <button id="clearChatBtn" class="settings-action" type="button">Resetovat konverzaci</button>
+        <div class="chat-disclaimer">
+          <span id="disclaimerText">Asistent může dělat chyby. Důležité informace si ověřte.</span>
+          <button id="consentLink" class="consent-link" type="button">Zpracování osobních údajů</button>
+          <div id="consentBox" class="consent-box"></div>
+        </div>
+      </div>
+
+      <div class="mode-switch">
+        <button id="modeChatBtn" class="mode-btn active" data-mode="chat" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span id="modeChatLabel">Chat</span>
+        </button>
+        <button id="modeVoiceBtn" class="mode-btn" data-mode="voice" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+          <span id="modeVoiceLabel">Hlas</span>
+        </button>
       </div>
 
       <div id="chat-box" class="chat-box"></div>
 
+      <div id="voiceView" class="voice-view">
+        <div class="voice-orb-row">
+          <div class="voice-orb-wrap">
+            <div class="voice-glow"></div>
+            <div class="voice-ring"></div>
+            <button id="voiceOrb" class="voice-orb" type="button" aria-label="Mluvit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+            </button>
+          </div>
+          <button id="voiceStopBtn" class="voice-stop" type="button" aria-label="Vypnout hlasového asistenta" title="Vypnout hlas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+          </button>
+        </div>
+        <div id="voiceWave" class="voice-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <div id="voiceStatus" class="voice-status">Klepněte na mikrofon a mluvte</div>
+        <div id="voiceTranscript" class="voice-transcript"></div>
+      </div>
+
+      <div id="attachPreview" class="attach-preview"></div>
       <div id="emojiPanel" class="emoji-panel"></div>
 
       <div class="input-area">
         <div class="composer-row">
-          <textarea id="message-input" rows="1" placeholder="Napište dotaz…" autocomplete="off"></textarea>
+          <textarea id="message-input" class="composer-input" rows="1" placeholder="Napište zprávu…" autocomplete="off"></textarea>
           <button class="send-btn is-empty" id="sendBtn" type="button" aria-label="Odeslat">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
         <div class="composer-actions">
+          <button id="attachBtn" class="composer-btn" type="button" aria-label="Přiložit soubor" title="Přiložit soubor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+          </button>
           <button id="emojiBtn" class="composer-btn" type="button" aria-label="Emoji" title="Emoji">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-              <line x1="9" y1="9" x2="9.01" y2="9"></line>
-              <line x1="15" y1="9" x2="15.01" y2="9"></line>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          </button>
+          <button id="voiceBtn" class="composer-btn voice-btn" type="button" aria-label="Hlasový vstup" title="Hlasový vstup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
           </button>
         </div>
+        <input type="file" id="fileInput" multiple hidden />
       </div>
 
-      <div class="powered-by">
-        Powered by <a href="https://eniq.eu/" target="_blank" rel="noopener">Eniq</a>
+      <div class="powered-by">Powered by <a href="https://eniq.eu/" target="_blank" rel="noopener">Eniq</a></div>
+
+      <div id="voiceCloseConfirm" class="vc-confirm">
+        <div class="vc-confirm-card">
+          <div class="vc-confirm-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+          </div>
+          <div class="vc-confirm-msg" id="vcMsg">Hlasový asistent právě běží. Chcete pokračovat v hovoru, nebo ho ukončit?</div>
+          <div class="vc-confirm-actions">
+            <button id="vcKeep" class="vc-btn vc-btn-keep" type="button">Pokračovat</button>
+            <button id="vcEnd" class="vc-btn vc-btn-end" type="button">Ukončit a zavřít</button>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -169,6 +231,14 @@
   let isRequestInFlight = false;
   let inviteTimer = null;
   const INVITE_DELAY_MS = 10000;
+  let soundEnabled = localStorage.getItem("eniq_sound") !== "off";
+  let animEnabled = localStorage.getItem("eniq_anim") !== "off";
+  let fontSize = localStorage.getItem("eniq_font") || "md";
+  let currentMode = "chat";
+  let recognition = null;
+  let listening = false;
+
+  const LANG_CODE = { cs: "cs-CZ", sk: "sk-SK", en: "en-US", uk: "uk-UA" };
 
   function ensureSessionId() {
     if (sessionId) return sessionId;
@@ -230,6 +300,20 @@
     sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", redirecting: "Presmerovávam...", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", inviteText: "Dobrý deň! Potrebujete poradiť s výberom nádrže, žumpy alebo septiku? Rád pomôžem.", inviteCta: "Začať konverzáciu", inviteOnline: "Online" },
     en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", redirecting: "Redirecting...", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", inviteText: "Hello! Need help choosing a tank, cesspool or septic system? I'm here to help.", inviteCta: "Start conversation", inviteOnline: "Online" },
     uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", redirecting: "Перенаправлення...", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", inviteText: "Доброго дня! Потрібна порада щодо резервуара, вигрібної ями чи септика? Допоможу.", inviteCta: "Почати розмову", inviteOnline: "Онлайн" }
+  };
+
+  const EXTRA_TEXT = {
+    cs: { disclaimer: "Asistent může dělat chyby. Důležité informace si ověřte.", consentLink: "Zpracování osobních údajů", consentFull: "Vaše zprávy zpracovává provozovatel e-shopu Česká nádrž jako správce údajů. Údaje slouží pouze k vyřízení vašeho dotazu.", animLabel: "Animace a efekty", soundLabel: "Zvuk zpráv", fontLabel: "Velikost písma", clearLabel: "Resetovat konverzaci", listening: "Poslouchám…" },
+    sk: { disclaimer: "Asistent môže robiť chyby. Dôležité informácie si overte.", consentLink: "Spracovanie osobných údajov", consentFull: "Vaše správy spracúva prevádzkovateľ e-shopu Česká nádrž ako správca údajov.", animLabel: "Animácie a efekty", soundLabel: "Zvuk správ", fontLabel: "Veľkosť písma", clearLabel: "Resetovať konverzáciu", listening: "Počúvam…" },
+    en: { disclaimer: "The assistant may make mistakes. Please verify important information.", consentLink: "Personal data processing", consentFull: "Your messages are processed by Česká nádrž e-shop as the data controller.", animLabel: "Animations & effects", soundLabel: "Message sounds", fontLabel: "Font size", clearLabel: "Reset conversation", listening: "Listening…" },
+    uk: { disclaimer: "Асистент може помилятися. Перевіряйте важливу інформацію.", consentLink: "Обробка персональних даних", consentFull: "Ваші повідомлення обробляє інтернет-магазин Česká nádrž як розпорядник даних.", animLabel: "Анімації та ефекти", soundLabel: "Звук повідомлень", fontLabel: "Розмір шрифту", clearLabel: "Скинути розмову", listening: "Слухаю…" }
+  };
+
+  const VOICE_TEXT = {
+    cs: { modeChat: "Chat", modeVoice: "Hlas", tapToSpeak: "Klepněte na mikrofon a mluvte", unsupported: "Hlasový režim vyžaduje moderní prohlížeč s mikrofonem." },
+    sk: { modeChat: "Chat", modeVoice: "Hlas", tapToSpeak: "Klepnite na mikrofón a hovorte", unsupported: "Hlasový režim vyžaduje moderný prehliadač s mikrofónom." },
+    en: { modeChat: "Chat", modeVoice: "Voice", tapToSpeak: "Tap the mic and speak", unsupported: "Voice mode needs a modern browser with a microphone." },
+    uk: { modeChat: "Чат", modeVoice: "Голос", tapToSpeak: "Торкніться мікрофона й говоріть", unsupported: "Голосовий режим потребує сучасного браузера з мікрофоном." }
   };
 
   const QUICK_ACTIONS = {
@@ -359,6 +443,20 @@
   const badge = document.getElementById("eniqBadge");
   const emojiPanel = document.getElementById("emojiPanel");
   const emojiBtn = document.getElementById("emojiBtn");
+  const settingsMenu = document.getElementById("settingsMenu");
+  const attachBtn = document.getElementById("attachBtn");
+  const voiceBtn = document.getElementById("voiceBtn");
+  const fileInput = document.getElementById("fileInput");
+  const animToggle = document.getElementById("animToggle");
+  const soundToggle = document.getElementById("soundToggle");
+  const fontSelect = document.getElementById("fontSelect");
+  const consentBox = document.getElementById("consentBox");
+  const modeChatBtn = document.getElementById("modeChatBtn");
+  const modeVoiceBtn = document.getElementById("modeVoiceBtn");
+  const voiceView = document.getElementById("voiceView");
+  const voiceStatus = document.getElementById("voiceStatus");
+  const voiceOrb = document.getElementById("voiceOrb");
+  const voiceCloseConfirm = document.getElementById("voiceCloseConfirm");
 
   if (!panel || !launcher || !chatBox || !input || !sendBtn) {
     console.error("[Eniq widget] Chybí DOM elementy widgetu.");
@@ -376,6 +474,136 @@
     if (inviteText) inviteText.textContent = UI_TEXT[selectedLang].inviteText;
     if (inviteCtaLabel) inviteCtaLabel.textContent = UI_TEXT[selectedLang].inviteCta;
     if (inviteOnline) inviteOnline.textContent = UI_TEXT[selectedLang].inviteOnline;
+    const extra = EXTRA_TEXT[selectedLang] || EXTRA_TEXT.cs;
+    const animLabel = document.getElementById("animLabel");
+    const soundLabel = document.getElementById("soundLabel");
+    const fontLabel = document.getElementById("fontLabel");
+    const clearChatBtn = document.getElementById("clearChatBtn");
+    if (animLabel) animLabel.textContent = extra.animLabel;
+    if (soundLabel) soundLabel.textContent = extra.soundLabel;
+    if (fontLabel) fontLabel.textContent = extra.fontLabel;
+    if (clearChatBtn) clearChatBtn.textContent = extra.clearLabel;
+    fillConsentTexts();
+    refreshVoiceTexts();
+  }
+
+  function fillConsentTexts() {
+    const extra = EXTRA_TEXT[selectedLang] || EXTRA_TEXT.cs;
+    const disclaimer = document.getElementById("disclaimerText");
+    const consentLink = document.getElementById("consentLink");
+    if (disclaimer) disclaimer.textContent = extra.disclaimer;
+    if (consentLink) consentLink.textContent = extra.consentLink;
+    if (consentBox) consentBox.textContent = extra.consentFull;
+  }
+
+  function refreshVoiceTexts() {
+    const vt = VOICE_TEXT[selectedLang] || VOICE_TEXT.cs;
+    const modeChatLabel = document.getElementById("modeChatLabel");
+    const modeVoiceLabel = document.getElementById("modeVoiceLabel");
+    if (modeChatLabel) modeChatLabel.textContent = vt.modeChat;
+    if (modeVoiceLabel) modeVoiceLabel.textContent = vt.modeVoice;
+    if (voiceStatus && currentMode === "voice") {
+      voiceStatus.textContent = recognition ? vt.tapToSpeak : vt.unsupported;
+    }
+  }
+
+  function setSound(on) {
+    soundEnabled = on;
+    localStorage.setItem("eniq_sound", on ? "on" : "off");
+    if (soundToggle) soundToggle.classList.toggle("active", on);
+  }
+
+  function setAnim(on) {
+    animEnabled = on;
+    localStorage.setItem("eniq_anim", on ? "on" : "off");
+    if (panel) panel.classList.toggle("no-anim", !on);
+    if (animToggle) animToggle.classList.toggle("active", on);
+  }
+
+  function setFontSize(size) {
+    fontSize = size;
+    localStorage.setItem("eniq_font", size);
+    if (panel) {
+      panel.classList.remove("fs-sm", "fs-md", "fs-lg");
+      panel.classList.add("fs-" + size);
+    }
+    if (fontSelect) fontSelect.value = size;
+  }
+
+  function switchMode(mode) {
+    currentMode = mode;
+    if (mode === "voice") {
+      panel.classList.add("voice-mode");
+      refreshVoiceTexts();
+    } else {
+      panel.classList.remove("voice-mode");
+      if (listening && recognition) {
+        try { recognition.stop(); } catch (_) {}
+        listening = false;
+      }
+      if (voiceBtn) voiceBtn.classList.remove("recording");
+    }
+    if (modeChatBtn) modeChatBtn.classList.toggle("active", mode === "chat");
+    if (modeVoiceBtn) modeVoiceBtn.classList.toggle("active", mode === "voice");
+    if (emojiPanel) emojiPanel.classList.remove("open");
+  }
+
+  function clearConversation() {
+    chatBox.innerHTML = "";
+    isFirstMessage = true;
+    quickActionsShown = false;
+    if (input) input.value = "";
+    autoGrowInput();
+    updateSendState();
+    if (emojiPanel) emojiPanel.classList.remove("open");
+    if (settingsMenu) settingsMenu.classList.remove("active");
+    addMessage(UI_TEXT[selectedLang].welcome, "bot", true);
+  }
+
+  function initSpeechRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        input.value = (input.value ? input.value + " " : "") + transcript;
+        autoGrowInput();
+        updateSendState();
+        if (currentMode === "chat") sendMessage();
+      }
+    };
+    recognition.onend = () => {
+      listening = false;
+      if (voiceBtn) voiceBtn.classList.remove("recording");
+      input.placeholder = UI_TEXT[selectedLang].placeholder;
+    };
+    recognition.onerror = () => {
+      listening = false;
+      if (voiceBtn) voiceBtn.classList.remove("recording");
+      input.placeholder = UI_TEXT[selectedLang].placeholder;
+    };
+  }
+
+  function toggleVoiceInput() {
+    if (!recognition) {
+      switchMode("chat");
+      addMessage((VOICE_TEXT[selectedLang] || VOICE_TEXT.cs).unsupported, "bot", false);
+      return;
+    }
+    if (listening) {
+      try { recognition.stop(); } catch (_) {}
+      return;
+    }
+    try {
+      recognition.lang = LANG_CODE[selectedLang] || "cs-CZ";
+      recognition.start();
+      listening = true;
+      if (voiceBtn) voiceBtn.classList.add("recording");
+      input.placeholder = (EXTRA_TEXT[selectedLang] || EXTRA_TEXT.cs).listening;
+    } catch (_) {}
   }
 
   function autoGrowInput() {
@@ -758,8 +986,33 @@
       if (emojiPanel) emojiPanel.classList.toggle('open');
     });
   }
+  if (attachBtn && fileInput) {
+    attachBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => { fileInput.value = ""; });
+  }
+  if (voiceBtn) voiceBtn.addEventListener("click", toggleVoiceInput);
+  if (modeChatBtn) modeChatBtn.addEventListener("click", () => switchMode("chat"));
+  if (modeVoiceBtn) modeVoiceBtn.addEventListener("click", () => switchMode("voice"));
+  if (voiceOrb) voiceOrb.addEventListener("click", toggleVoiceInput);
+  if (animToggle) animToggle.addEventListener("click", () => setAnim(!animEnabled));
+  if (soundToggle) soundToggle.addEventListener("click", () => setSound(!soundEnabled));
+  if (fontSelect) fontSelect.addEventListener("change", (e) => setFontSize(e.target.value));
+  const clearChatBtn = document.getElementById("clearChatBtn");
+  if (clearChatBtn) clearChatBtn.addEventListener("click", clearConversation);
+  const consentLink = document.getElementById("consentLink");
+  if (consentLink) consentLink.addEventListener("click", () => { if (consentBox) consentBox.classList.toggle("open"); });
+  const vcKeep = document.getElementById("vcKeep");
+  const vcEnd = document.getElementById("vcEnd");
+  if (vcKeep) vcKeep.addEventListener("click", () => { if (voiceCloseConfirm) voiceCloseConfirm.classList.remove("open"); });
+  if (vcEnd) vcEnd.addEventListener("click", () => {
+    switchMode("chat");
+    if (voiceCloseConfirm) voiceCloseConfirm.classList.remove("open");
+    panel.classList.remove('open');
+    sessionStorage.setItem("eniq_is_open", "false");
+    scheduleInvite();
+  });
   
-  document.getElementById("langSelect").addEventListener("change", (e) => { 
+  document.getElementById("langSelect").addEventListener("change", (e) => {
     selectedLang = e.target.value; localStorage.setItem("eniq_lang", selectedLang); updateUI();
     chatBox.innerHTML = ""; isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true);
   });
@@ -921,7 +1174,11 @@
   });
 
   buildEmojiPanel();
+  initSpeechRecognition();
   syncWidgetAssetsFromServer();
+  setAnim(animEnabled);
+  setSound(soundEnabled);
+  setFontSize(fontSize);
   updateUI(); setExpanded(isExpanded); setTheme(isDark); updateSendState();
   if (isChatOpen) { 
     panel.classList.add('open'); 
