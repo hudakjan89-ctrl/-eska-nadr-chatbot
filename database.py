@@ -38,10 +38,13 @@ def init_db():
 # ================= PRODUKTY =================
 def upsert_products(products):
     init_db()
-    points =[]
-    for prod in products:
-        text_to_embed = f"Název: {prod['name']} Kategorie: {prod.get('category', '')} Popis: {prod.get('description', '')}"
-        vector = model.encode(text_to_embed, show_progress_bar=False).tolist()
+    if not products:
+        return
+    points = []
+    texts = [f"Název: {prod['name']} Kategorie: {prod.get('category', '')} Popis: {prod.get('description', '')}" for prod in products]
+    logger.info(f"Generujem embeddingy pre {len(products)} produktov...")
+    vectors = model.encode(texts, batch_size=32, show_progress_bar=False).tolist()
+    for prod, vector in zip(products, vectors):
         points.append(PointStruct(
             id=prod['id'],
             vector=vector,
@@ -74,7 +77,7 @@ def upsert_knowledge_content(content: str):
     # Rozsekáme text presne podľa tvojich nadpisov "### "
     sections = content.split('\n### ')
     points = []
-
+    items = []
     # Preskočíme úplne prvý blok (hlavný nadpis dokumentu), ten nepotrebujeme ako samostatnú radu
     for section in sections[1:]:
         lines = section.split('\n')
@@ -82,19 +85,24 @@ def upsert_knowledge_content(content: str):
         body = '\n'.join(lines[1:]).strip()
 
         if title and body:
-            # Spojíme nadpis a telo do jedného textu pre AI
-            text_to_embed = f"Téma: {title}\nInformace: {body}"
-            vector = model.encode(text_to_embed, show_progress_bar=False).tolist()
+            items.append({"title": title, "body": body})
+            
+    if not items:
+        return
 
-            # Vytvoríme unikátne ID z názvu sekcie (aby sa pri reštarte nepridávali duplikáty)
-            chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, title))
-
-            points.append(PointStruct(
-                id=chunk_id,
-                vector=vector,
-                payload={"title": title, "content": body}
-            ))
-
+    texts = [f"Téma: {item['title']}\nInformace: {item['body']}" for item in items]
+    logger.info(f"Generujem embeddingy pre {len(items)} informačných blokov...")
+    vectors = model.encode(texts, batch_size=32, show_progress_bar=False).tolist()
+    
+    for item, vector in zip(items, vectors):
+        # Vytvoríme unikátne ID z názvu sekcie (aby sa pri reštarte nepridávali duplikáty)
+        chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, item['title']))
+        
+        points.append(PointStruct(
+            id=chunk_id,
+            vector=vector,
+            payload={"title": item['title'], "content": item['body']}
+        ))
     if points:
         client.upsert(collection_name=COLLECTION_KNOWLEDGE, points=points)
         logger.info(f"Úspešne rozsekaných a uložených {len(points)} informačných blokov z manuálu.")
