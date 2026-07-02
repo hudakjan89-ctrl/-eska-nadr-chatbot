@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.6';
+  const WIDGET_VERSION = '9.4.8';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -61,14 +61,18 @@
 
     <div id="invitePopup" class="invite-popup" role="dialog" aria-label="Pozvánka k chatu">
       <button id="inviteClose" class="invite-close" type="button" aria-label="Zavřít pozvánku">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
+        <span class="invite-close-face">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </span>
       </button>
       <div class="invite-head">
         <div class="invite-avatar">
-          <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
-          <span class="launcher-online" aria-hidden="true"></span>
+          <span class="invite-avatar-face">
+            <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
+            <span class="launcher-online" aria-hidden="true"></span>
+          </span>
         </div>
         <div class="invite-meta">
           <div class="invite-name" id="inviteName">Virtuální asistent</div>
@@ -77,10 +81,12 @@
       </div>
       <div class="invite-text" id="inviteText">Dobrý den! Potřebujete poradit s výběrem nádrže, jímky nebo septiku? Rád pomohu.</div>
       <button id="inviteCta" class="invite-cta" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-        <span id="inviteCtaLabel">Začít konverzaci</span>
+        <span class="invite-cta-face">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <span id="inviteCtaLabel">Začít konverzaci</span>
+        </span>
       </button>
     </div>
 
@@ -88,7 +94,9 @@
       <div class="chat-header">
         <div class="chat-header-left">
           <div class="chat-header-avatar">
-            <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
+            <span class="chat-header-avatar-face">
+              <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
+            </span>
           </div>
           <div class="chat-header-info">
             <div class="chat-header-title">Virtuální asistent</div>
@@ -144,36 +152,7 @@
         </div>
       </div>
 
-      <div class="mode-switch">
-        <button id="modeChatBtn" class="mode-btn active" data-mode="chat" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span id="modeChatLabel">Chat</span>
-        </button>
-        <button id="modeVoiceBtn" class="mode-btn" data-mode="voice" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
-          <span id="modeVoiceLabel">Hlas</span>
-        </button>
-      </div>
-
       <div id="chat-box" class="chat-box"></div>
-
-      <div id="voiceView" class="voice-view">
-        <div class="voice-orb-row">
-          <div class="voice-orb-wrap">
-            <div class="voice-glow"></div>
-            <div class="voice-ring"></div>
-            <button id="voiceOrb" class="voice-orb" type="button" aria-label="Mluvit">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
-            </button>
-          </div>
-          <button id="voiceStopBtn" class="voice-stop" type="button" aria-label="Vypnout hlasového asistenta" title="Vypnout hlas">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
-          </button>
-        </div>
-        <div id="voiceWave" class="voice-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        <div id="voiceStatus" class="voice-status">Klepněte na mikrofon a mluvte</div>
-        <div id="voiceTranscript" class="voice-transcript"></div>
-      </div>
 
       <div id="attachPreview" class="attach-preview"></div>
       <div id="emojiPanel" class="emoji-panel"></div>
@@ -192,27 +171,11 @@
           <button id="emojiBtn" class="composer-btn" type="button" aria-label="Emoji" title="Emoji">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
           </button>
-          <button id="voiceBtn" class="composer-btn voice-btn" type="button" aria-label="Hlasový vstup" title="Hlasový vstup">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
         </div>
         <input type="file" id="fileInput" multiple hidden />
       </div>
 
       <div class="powered-by">Powered by <a href="https://eniq.eu/" target="_blank" rel="noopener">Eniq</a></div>
-
-      <div id="voiceCloseConfirm" class="vc-confirm">
-        <div class="vc-confirm-card">
-          <div class="vc-confirm-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
-          </div>
-          <div class="vc-confirm-msg" id="vcMsg">Hlasový asistent právě běží. Chcete pokračovat v hovoru, nebo ho ukončit?</div>
-          <div class="vc-confirm-actions">
-            <button id="vcKeep" class="vc-btn vc-btn-keep" type="button">Pokračovat</button>
-            <button id="vcEnd" class="vc-btn vc-btn-end" type="button">Ukončit a zavřít</button>
-          </div>
-        </div>
-      </div>
     </div>
   `;
 
@@ -238,11 +201,6 @@
   let soundEnabled = localStorage.getItem("eniq_sound") !== "off";
   let animEnabled = localStorage.getItem("eniq_anim") !== "off";
   let fontSize = localStorage.getItem("eniq_font") || "md";
-  let currentMode = "chat";
-  let recognition = null;
-  let listening = false;
-
-  const LANG_CODE = { cs: "cs-CZ", sk: "sk-SK", en: "en-US", uk: "uk-UA" };
 
   function ensureSessionId() {
     if (sessionId) return sessionId;
@@ -307,17 +265,10 @@
   };
 
   const EXTRA_TEXT = {
-    cs: { disclaimer: "Asistent může dělat chyby. Důležité informace si ověřte.", consentLink: "Zpracování osobních údajů", consentFull: "Vaše zprávy zpracovává provozovatel e-shopu Česká nádrž jako správce údajů. Údaje slouží pouze k vyřízení vašeho dotazu.", animLabel: "Animace a efekty", soundLabel: "Zvuk zpráv", fontLabel: "Velikost písma", clearLabel: "Resetovat konverzaci", listening: "Poslouchám…" },
-    sk: { disclaimer: "Asistent môže robiť chyby. Dôležité informácie si overte.", consentLink: "Spracovanie osobných údajov", consentFull: "Vaše správy spracúva prevádzkovateľ e-shopu Česká nádrž ako správca údajov.", animLabel: "Animácie a efekty", soundLabel: "Zvuk správ", fontLabel: "Veľkosť písma", clearLabel: "Resetovať konverzáciu", listening: "Počúvam…" },
-    en: { disclaimer: "The assistant may make mistakes. Please verify important information.", consentLink: "Personal data processing", consentFull: "Your messages are processed by Česká nádrž e-shop as the data controller.", animLabel: "Animations & effects", soundLabel: "Message sounds", fontLabel: "Font size", clearLabel: "Reset conversation", listening: "Listening…" },
-    uk: { disclaimer: "Асистент може помилятися. Перевіряйте важливу інформацію.", consentLink: "Обробка персональних даних", consentFull: "Ваші повідомлення обробляє інтернет-магазин Česká nádrž як розпорядник даних.", animLabel: "Анімації та ефекти", soundLabel: "Звук повідомлень", fontLabel: "Розмір шрифту", clearLabel: "Скинути розмову", listening: "Слухаю…" }
-  };
-
-  const VOICE_TEXT = {
-    cs: { modeChat: "Chat", modeVoice: "Hlas", tapToSpeak: "Klepněte na mikrofon a mluvte", unsupported: "Hlasový režim vyžaduje moderní prohlížeč s mikrofonem." },
-    sk: { modeChat: "Chat", modeVoice: "Hlas", tapToSpeak: "Klepnite na mikrofón a hovorte", unsupported: "Hlasový režim vyžaduje moderný prehliadač s mikrofónom." },
-    en: { modeChat: "Chat", modeVoice: "Voice", tapToSpeak: "Tap the mic and speak", unsupported: "Voice mode needs a modern browser with a microphone." },
-    uk: { modeChat: "Чат", modeVoice: "Голос", tapToSpeak: "Торкніться мікрофона й говоріть", unsupported: "Голосовий режим потребує сучасного браузера з мікрофоном." }
+    cs: { disclaimer: "Asistent může dělat chyby. Důležité informace si ověřte.", consentLink: "Zpracování osobních údajů", consentFull: "Vaše zprávy zpracovává provozovatel e-shopu Česká nádrž jako správce údajů. Údaje slouží pouze k vyřízení vašeho dotazu.", animLabel: "Animace a efekty", soundLabel: "Zvuk zpráv", fontLabel: "Velikost písma", clearLabel: "Resetovat konverzaci" },
+    sk: { disclaimer: "Asistent môže robiť chyby. Dôležité informácie si overte.", consentLink: "Spracovanie osobných údajov", consentFull: "Vaše správy spracúva prevádzkovateľ e-shopu Česká nádrž ako správca údajov.", animLabel: "Animácie a efekty", soundLabel: "Zvuk správ", fontLabel: "Veľkosť písma", clearLabel: "Resetovať konverzáciu" },
+    en: { disclaimer: "The assistant may make mistakes. Please verify important information.", consentLink: "Personal data processing", consentFull: "Your messages are processed by Česká nádrž e-shop as the data controller.", animLabel: "Animations & effects", soundLabel: "Message sounds", fontLabel: "Font size", clearLabel: "Reset conversation" },
+    uk: { disclaimer: "Асистент може помилятися. Перевіряйте важливу інформацію.", consentLink: "Обробка персональних даних", consentFull: "Ваші повідомлення обробляє інтернет-магазин Česká nádrž як розпорядник даних.", animLabel: "Анімації та ефекти", soundLabel: "Звук повідомлень", fontLabel: "Розмір шрифту", clearLabel: "Скинути розмову" }
   };
 
   const QUICK_ACTIONS = {
@@ -449,18 +400,11 @@
   const emojiBtn = document.getElementById("emojiBtn");
   const settingsMenu = document.getElementById("settingsMenu");
   const attachBtn = document.getElementById("attachBtn");
-  const voiceBtn = document.getElementById("voiceBtn");
   const fileInput = document.getElementById("fileInput");
   const animToggle = document.getElementById("animToggle");
   const soundToggle = document.getElementById("soundToggle");
   const fontSelect = document.getElementById("fontSelect");
   const consentBox = document.getElementById("consentBox");
-  const modeChatBtn = document.getElementById("modeChatBtn");
-  const modeVoiceBtn = document.getElementById("modeVoiceBtn");
-  const voiceView = document.getElementById("voiceView");
-  const voiceStatus = document.getElementById("voiceStatus");
-  const voiceOrb = document.getElementById("voiceOrb");
-  const voiceCloseConfirm = document.getElementById("voiceCloseConfirm");
 
   if (!panel || !launcher || !chatBox || !input || !sendBtn) {
     console.error("[Eniq widget] Chybí DOM elementy widgetu.");
@@ -488,7 +432,6 @@
     if (fontLabel) fontLabel.textContent = extra.fontLabel;
     if (clearChatBtn) clearChatBtn.textContent = extra.clearLabel;
     fillConsentTexts();
-    refreshVoiceTexts();
   }
 
   function fillConsentTexts() {
@@ -498,17 +441,6 @@
     if (disclaimer) disclaimer.textContent = extra.disclaimer;
     if (consentLink) consentLink.textContent = extra.consentLink;
     if (consentBox) consentBox.textContent = extra.consentFull;
-  }
-
-  function refreshVoiceTexts() {
-    const vt = VOICE_TEXT[selectedLang] || VOICE_TEXT.cs;
-    const modeChatLabel = document.getElementById("modeChatLabel");
-    const modeVoiceLabel = document.getElementById("modeVoiceLabel");
-    if (modeChatLabel) modeChatLabel.textContent = vt.modeChat;
-    if (modeVoiceLabel) modeVoiceLabel.textContent = vt.modeVoice;
-    if (voiceStatus && currentMode === "voice") {
-      voiceStatus.textContent = recognition ? vt.tapToSpeak : vt.unsupported;
-    }
   }
 
   function setSound(on) {
@@ -534,24 +466,6 @@
     if (fontSelect) fontSelect.value = size;
   }
 
-  function switchMode(mode) {
-    currentMode = mode;
-    if (mode === "voice") {
-      panel.classList.add("voice-mode");
-      refreshVoiceTexts();
-    } else {
-      panel.classList.remove("voice-mode");
-      if (listening && recognition) {
-        try { recognition.stop(); } catch (_) {}
-        listening = false;
-      }
-      if (voiceBtn) voiceBtn.classList.remove("recording");
-    }
-    if (modeChatBtn) modeChatBtn.classList.toggle("active", mode === "chat");
-    if (modeVoiceBtn) modeVoiceBtn.classList.toggle("active", mode === "voice");
-    if (emojiPanel) emojiPanel.classList.remove("open");
-  }
-
   function clearConversation() {
     chatBox.innerHTML = "";
     isFirstMessage = true;
@@ -562,52 +476,6 @@
     if (emojiPanel) emojiPanel.classList.remove("open");
     if (settingsMenu) settingsMenu.classList.remove("active");
     addMessage(UI_TEXT[selectedLang].welcome, "bot", true);
-  }
-
-  function initSpeechRecognition() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript) {
-        input.value = (input.value ? input.value + " " : "") + transcript;
-        autoGrowInput();
-        updateSendState();
-        if (currentMode === "chat") sendMessage();
-      }
-    };
-    recognition.onend = () => {
-      listening = false;
-      if (voiceBtn) voiceBtn.classList.remove("recording");
-      input.placeholder = UI_TEXT[selectedLang].placeholder;
-    };
-    recognition.onerror = () => {
-      listening = false;
-      if (voiceBtn) voiceBtn.classList.remove("recording");
-      input.placeholder = UI_TEXT[selectedLang].placeholder;
-    };
-  }
-
-  function toggleVoiceInput() {
-    if (!recognition) {
-      switchMode("chat");
-      addMessage((VOICE_TEXT[selectedLang] || VOICE_TEXT.cs).unsupported, "bot", false);
-      return;
-    }
-    if (listening) {
-      try { recognition.stop(); } catch (_) {}
-      return;
-    }
-    try {
-      recognition.lang = LANG_CODE[selectedLang] || "cs-CZ";
-      recognition.start();
-      listening = true;
-      if (voiceBtn) voiceBtn.classList.add("recording");
-      input.placeholder = (EXTRA_TEXT[selectedLang] || EXTRA_TEXT.cs).listening;
-    } catch (_) {}
   }
 
   function autoGrowInput() {
@@ -1000,10 +868,6 @@
     attachBtn.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => { fileInput.value = ""; });
   }
-  if (voiceBtn) voiceBtn.addEventListener("click", toggleVoiceInput);
-  if (modeChatBtn) modeChatBtn.addEventListener("click", () => switchMode("chat"));
-  if (modeVoiceBtn) modeVoiceBtn.addEventListener("click", () => switchMode("voice"));
-  if (voiceOrb) voiceOrb.addEventListener("click", toggleVoiceInput);
   if (animToggle) animToggle.addEventListener("click", () => setAnim(!animEnabled));
   if (soundToggle) soundToggle.addEventListener("click", () => setSound(!soundEnabled));
   if (fontSelect) fontSelect.addEventListener("change", (e) => setFontSize(e.target.value));
@@ -1011,16 +875,6 @@
   if (clearChatBtn) clearChatBtn.addEventListener("click", clearConversation);
   const consentLink = document.getElementById("consentLink");
   if (consentLink) consentLink.addEventListener("click", () => { if (consentBox) consentBox.classList.toggle("open"); });
-  const vcKeep = document.getElementById("vcKeep");
-  const vcEnd = document.getElementById("vcEnd");
-  if (vcKeep) vcKeep.addEventListener("click", () => { if (voiceCloseConfirm) voiceCloseConfirm.classList.remove("open"); });
-  if (vcEnd) vcEnd.addEventListener("click", () => {
-    switchMode("chat");
-    if (voiceCloseConfirm) voiceCloseConfirm.classList.remove("open");
-    panel.classList.remove('open');
-    sessionStorage.setItem("eniq_is_open", "false");
-    scheduleInvite();
-  });
   
   document.getElementById("langSelect").addEventListener("change", (e) => {
     selectedLang = e.target.value; localStorage.setItem("eniq_lang", selectedLang); updateUI();
@@ -1184,7 +1038,6 @@
   });
 
   buildEmojiPanel();
-  initSpeechRecognition();
   syncWidgetAssetsFromServer();
   setAnim(animEnabled);
   setSound(soundEnabled);
