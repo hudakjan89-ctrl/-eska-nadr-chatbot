@@ -42,7 +42,7 @@ logger = logging.getLogger("ceska_nadrz.main")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.3.5"
+WIDGET_VERSION = "9.3.6"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -114,20 +114,41 @@ async def widget_style_current():
     )
 
 
-@app.get(f"/widget/{WIDGET_VERSION}/chat.js", include_in_schema=False)
-async def widget_core_js():
+@app.get("/widget/{version}/chat.js", include_in_schema=False)
+async def widget_core_js(version: str):
+    """Akákoľvek verzia — vždy servuje aktuálny widget (spätná kompatibilita s cache)."""
     return Response(
         content=_read_widget_asset(STATIC_DIR / "js" / "chat.js"),
         media_type="application/javascript",
-        headers=_widget_asset_headers(),
+        headers=_widget_asset_headers({"X-Widget-Requested-Version": version}),
     )
 
 
-@app.get(f"/widget/{WIDGET_VERSION}/style.css", include_in_schema=False)
-async def widget_core_css():
+@app.get("/widget/{version}/style.css", include_in_schema=False)
+async def widget_core_css(version: str):
     return Response(
         content=_read_widget_asset(STATIC_DIR / "css" / "style.css"),
         media_type="text/css",
+        headers=_widget_asset_headers({"X-Widget-Requested-Version": version}),
+    )
+
+
+BOT_ICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    '<circle cx="32" cy="32" r="30" fill="#ffffff"/>'
+    '<path fill="#005b9f" d="M32 14c8 12 16 20 16 28a16 16 0 0 1-32 0c0-8 8-16 16-28z"/>'
+    "</svg>"
+)
+
+
+@app.get("/static/img/bot.png", include_in_schema=False)
+async def widget_bot_icon():
+    icon_path = STATIC_DIR / "img" / "bot.png"
+    if icon_path.is_file():
+        return FileResponse(icon_path, media_type="image/png", headers=_widget_asset_headers())
+    return Response(
+        content=BOT_ICON_SVG.encode("utf-8"),
+        media_type="image/svg+xml",
         headers=_widget_asset_headers(),
     )
 
@@ -347,6 +368,7 @@ async def purge_cloudflare_widget_cache():
         f"{WIDGET_PUBLIC_BASE}/widget/manifest.json",
         f"{WIDGET_PUBLIC_BASE}/widget/{WIDGET_VERSION}/chat.js",
         f"{WIDGET_PUBLIC_BASE}/widget/{WIDGET_VERSION}/style.css",
+        f"{WIDGET_PUBLIC_BASE}/static/img/bot.png",
     ]
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:

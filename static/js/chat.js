@@ -1,20 +1,23 @@
 // static/js/chat.js
 (function() {
+  if (window.__ENIQ_WIDGET__) return;
+  window.__ENIQ_WIDGET__ = 1;
+
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.3.5';
+  const WIDGET_VERSION = '9.3.6';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
   fontLink.href = 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&display=swap';
-  document.head.appendChild(fontLink);
+  if (document.head) document.head.appendChild(fontLink);
 
   const cssLink = document.createElement('link');
   cssLink.rel = 'stylesheet';
   cssLink.setAttribute('data-eniq-widget-css', '1');
   cssLink.href = WIDGET_CSS_URL;
-  document.head.appendChild(cssLink);
+  if (document.head) document.head.appendChild(cssLink);
 
   const BOT_IMG = `${BASE_URL}/static/img/bot.png?${assetV}`;
 
@@ -146,21 +149,9 @@
       </div>
     </div>
   `;
-  if (document.getElementById("chatLauncher")) return;
-  if (!document.body) {
-    document.addEventListener("DOMContentLoaded", function onReady() {
-      document.removeEventListener("DOMContentLoaded", onReady);
-      if (!document.getElementById("chatLauncher") && document.body) {
-        document.body.insertAdjacentHTML("beforeend", chatHTML);
-        bootWidget();
-      }
-    });
-    return;
-  }
-  document.body.insertAdjacentHTML('beforeend', chatHTML);
-  bootWidget();
 
   function bootWidget() {
+  if (window.__ENIQ_WIDGET_BOOTED__) return;
   let sessionId = localStorage.getItem("session_id") || null;
   let selectedLang = localStorage.getItem("eniq_lang") || "cs";
   let isExpanded = localStorage.getItem("eniq_expanded") === "true";
@@ -368,7 +359,11 @@
   const badge = document.getElementById("eniqBadge");
   const emojiPanel = document.getElementById("emojiPanel");
   const emojiBtn = document.getElementById("emojiBtn");
-  
+
+  if (!panel || !launcher || !chatBox || !input || !sendBtn) {
+    console.error("[Eniq widget] Chybí DOM elementy widgetu.");
+    return;
+  }
   function updateUI() {
     input.placeholder = UI_TEXT[selectedLang].placeholder;
     document.getElementById("expandLabel").textContent = UI_TEXT[selectedLang].expandLabel;
@@ -934,5 +929,32 @@
   } else {
     scheduleInvite();
   }
+  window.__ENIQ_WIDGET_BOOTED__ = true;
   }
+
+  function mountWidget() {
+    try {
+      if (!document.body) return false;
+      if (!document.getElementById("chatLauncher")) {
+        document.body.insertAdjacentHTML("beforeend", chatHTML);
+      }
+      bootWidget();
+      return Boolean(document.getElementById("chatLauncher"));
+    } catch (err) {
+      console.error("[Eniq widget] Nepodařilo se načíst launcher:", err);
+      return false;
+    }
+  }
+
+  if (mountWidget()) return;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mountWidget, { once: true });
+    return;
+  }
+
+  const waitForBody = setInterval(() => {
+    if (mountWidget()) clearInterval(waitForBody);
+  }, 20);
+  setTimeout(() => clearInterval(waitForBody), 10000);
 })();
