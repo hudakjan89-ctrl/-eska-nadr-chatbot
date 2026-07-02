@@ -339,8 +339,8 @@ async def update_database_task():
         logger.info("Vykonavam planovanu ulohu update_database_task...")
         products = await fetch_and_parse_xml()
         if products:
-            logger.info(f"Nacitanych {len(products)} produktov, ukladám do DB...")
-            upsert_products(products)
+            logger.info(f"Nacitanych {len(products)} produktov, ukladám do DB (v samostatnom vlákne)...")
+            await asyncio.to_thread(upsert_products, products)
         else:
             logger.warning("Ziadne produkty stiahnute z XML (prazdny zoznam).")
 
