@@ -433,23 +433,26 @@
 .eniq-panel .quick-action-btn{
     width: auto;
     max-width: none;
+    min-width: 0;
 }
 
 .quick-actions-inline{
-    display:flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    flex-wrap: wrap;
     margin: 2px 0 16px 0;
     padding-left: 40px;
+    width: calc(100% - 40px);
 }
 
 .quick-action-btn{
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 9px 14px;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 10px;
     border-radius: var(--radius-sm);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     background: #ffffff;
@@ -458,6 +461,10 @@
     box-shadow: 0 1px 3px rgba(18,18,40,0.05);
     transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease);
     animation: chipIn .45s var(--ease) both;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .quick-action-btn:nth-child(1){ animation-delay: .04s; }
 .quick-action-btn:nth-child(2){ animation-delay: .10s; }
