@@ -40,9 +40,13 @@
     height: 66px !important;
     z-index: 2147483640 !important;
     pointer-events: none;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    animation: float 5s ease-in-out infinite;
 }
 
-/* ============== Launcher (BUTTON) ============== */
+/* ============== Launcher (BUTTON) — transparent hit target ============== */
 .eniq-launcher-wrap .eniq-launcher,
 .eniq-launcher{
     position: relative !important;
@@ -53,33 +57,48 @@
     min-width: 66px !important;
     min-height: 66px !important;
     max-width: 66px !important;
-    border-radius: 50% !important;
-    background: #ffffff !important;
-    border: none !important;
-    box-shadow: 0 10px 28px -6px rgba(var(--brand-rgb), 0.45), 0 4px 12px rgba(0,0,0,0.12) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 5px !important;
+    padding: 0 !important;
     margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    display: block !important;
     cursor: pointer !important;
     pointer-events: auto !important;
-    animation: float 5s ease-in-out infinite;
-    transition: transform .3s var(--ease), box-shadow .3s var(--ease);
     overflow: visible !important;
     outline: none !important;
     appearance: none !important;
     -webkit-appearance: none !important;
+    transition: transform .3s var(--ease);
 }
 
-/* brand ring */
-.eniq-launcher::before{
+.eniq-launcher::before{ display: none !important; }
+
+/* visible circular face — not a <button>, host CSS won't square it */
+.eniq-launcher-face{
+    display: block;
+    position: relative;
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 10px 28px -6px rgba(var(--brand-rgb), 0.45), 0 4px 12px rgba(0,0,0,0.12);
+    padding: 5px;
+    box-sizing: border-box;
+    transition: box-shadow .3s var(--ease);
+}
+
+.eniq-launcher-face::before{
     content:"";
     position:absolute;
     inset:0;
     border-radius:50%;
     border:2.5px solid var(--brand);
     pointer-events:none;
+    z-index: 2;
 }
 @keyframes pulseRing{
     0%   { transform: scale(1);    opacity:.55; }
@@ -115,9 +134,13 @@
 }
 
 .eniq-launcher:hover{
-    animation-play-state: paused;
     transform: scale(1.08);
-    box-shadow: 0 16px 36px -8px rgba(var(--brand-rgb), 0.6) !important;
+}
+.eniq-launcher-wrap:hover{
+    animation-play-state: paused;
+}
+.eniq-launcher:hover .eniq-launcher-face{
+    box-shadow: 0 16px 36px -8px rgba(var(--brand-rgb), 0.6);
 }
 .eniq-launcher:active{ transform: scale(.96); }
 
@@ -127,6 +150,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 .bot-img{ width: 100%; height: 100%; object-fit: cover; }
@@ -159,6 +184,7 @@
 }
 
 /* attention nudge when the invite appears */
+.eniq-launcher-wrap.nudge,
 .eniq-launcher.nudge{ animation: launcherNudge .7s var(--ease); }
 @keyframes launcherNudge{
     0%, 100% { transform: translateY(0) scale(1); }
@@ -1328,6 +1354,11 @@ body.eniq-dark .invite-popup{ }
         right: 16px !important;
         bottom: 16px !important;
     }
+    .eniq-launcher-wrap .eniq-launcher-face,
+    .eniq-launcher-face{
+        width: 58px !important;
+        height: 58px !important;
+    }
     .eniq-launcher-wrap .eniq-launcher,
     .eniq-launcher{
         width: 58px !important;
@@ -1335,7 +1366,6 @@ body.eniq-dark .invite-popup{ }
         min-width: 58px !important;
         min-height: 58px !important;
         max-width: 58px !important;
-        padding: 5px !important;
     }
     .desktop-only-setting { display: none !important; }
     .eniq-panel{

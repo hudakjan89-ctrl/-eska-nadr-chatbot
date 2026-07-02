@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.5';
+  const WIDGET_VERSION = '9.4.6';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -49,10 +49,12 @@
   const chatHTML = `
     <div class="eniq-launcher-wrap">
     <button id="chatLauncher" class="eniq-launcher" type="button" aria-label="Otevřít chat">
-      <div class="eniq-launcher-avatar">
-        <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
-      </div>
-      <span class="launcher-online" aria-hidden="true"></span>
+      <span class="eniq-launcher-face">
+        <span class="eniq-launcher-avatar">
+          <img src="${BOT_IMG}" alt="Česká nádrž" class="bot-img">
+        </span>
+        <span class="launcher-online" aria-hidden="true"></span>
+      </span>
       <span id="eniqBadge" class="eniq-badge">1</span>
     </button>
     </div>
@@ -693,10 +695,16 @@
 
   function nudgeLauncher() {
     if (!launcher) return;
-    launcher.classList.remove("nudge");
-    void launcher.offsetWidth;
-    launcher.classList.add("nudge");
-    setTimeout(() => launcher.classList.remove("nudge"), 700);
+    const wrap = launcher.closest(".eniq-launcher-wrap");
+    [launcher, wrap].filter(Boolean).forEach((el) => {
+      el.classList.remove("nudge");
+      void el.offsetWidth;
+      el.classList.add("nudge");
+    });
+    setTimeout(() => {
+      launcher.classList.remove("nudge");
+      if (wrap) wrap.classList.remove("nudge");
+    }, 700);
   }
 
   function showInvite() {
