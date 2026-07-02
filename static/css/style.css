@@ -32,6 +32,7 @@
 }
 
 /* ============== Launcher (BUTTON) ============== */
+button#chatLauncher.eniq-launcher,
 .eniq-launcher{
     position: fixed !important;
     right: 24px !important;
@@ -43,12 +44,14 @@
     max-width: none !important;
     border-radius: 50% !important;
     background: #ffffff !important;
+    background-image: none !important;
     border: none !important;
-    box-shadow: 0 10px 28px -6px rgba(var(--brand-rgb), 0.45), 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: none !important;
+    filter: drop-shadow(0 8px 22px rgba(var(--brand-rgb), 0.38));
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 5px !important;
+    padding: 0 !important;
     margin: 0 !important;
     cursor: pointer !important;
     z-index: 2147483640 !important;
@@ -60,7 +63,10 @@
     outline: none !important;
     appearance: none !important;
     -webkit-appearance: none !important;
-    transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+    clip-path: circle(50% at 50% 50%);
+    -webkit-clip-path: circle(50% at 50% 50%);
+    isolation: isolate;
+    transition: transform .3s var(--ease), filter .3s var(--ease);
 }
 
 /* brand ring */
@@ -121,14 +127,19 @@
     border-radius: 50%;
     overflow: hidden;
     background: #ffffff;
+    padding: 3px;
+    box-sizing: border-box;
 }
 
 .bot-img{ width: 100%; height: 100%; object-fit: cover; }
 .eniq-launcher .bot-img{
-    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
     border-radius: 50%;
     background: transparent;
     display: block;
+    transform: scale(1.08);
 }
 
 .eniq-badge{
@@ -445,7 +456,7 @@
     width: auto;
     max-width: none;
     min-width: 0;
-    background: #ffffff !important;
+    background: #f7fafc !important;
     box-shadow: none !important;
     outline: none !important;
     appearance: none !important;
@@ -455,52 +466,73 @@
 .quick-actions-inline{
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin: 2px 0 16px 0;
-    padding-left: 40px;
-    width: calc(100% - 40px);
+    gap: 7px;
+    margin: 6px 0 14px 0;
+    padding: 0 10px 0 42px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .quick-action-btn{
-    display: inline-flex;
+    display: flex;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 9px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 8px 9px;
+    min-height: 42px;
+    border-radius: 11px;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 1.25;
     cursor: pointer;
-    background: #ffffff;
+    background: #f7fafc;
     color: var(--ink);
-    border: 1px solid var(--line);
+    border: 1px solid #e3ebf3;
     transition: border-color .2s var(--ease), background .2s var(--ease);
-    animation: chipIn .45s var(--ease) both;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    animation: chipIn .35s var(--ease) both;
+    text-align: left;
+    white-space: normal;
 }
-.quick-action-btn:nth-child(1){ animation-delay: .04s; }
-.quick-action-btn:nth-child(2){ animation-delay: .10s; }
-.quick-action-btn:nth-child(3){ animation-delay: .16s; }
-.quick-action-btn:nth-child(4){ animation-delay: .22s; }
+.quick-action-btn:nth-child(1){ animation-delay: .03s; }
+.quick-action-btn:nth-child(2){ animation-delay: .07s; }
+.quick-action-btn:nth-child(3){ animation-delay: .11s; }
+.quick-action-btn:nth-child(4){ animation-delay: .15s; }
+.quick-action-btn:nth-child(5){ animation-delay: .19s; }
+.quick-action-btn:nth-child(6){ animation-delay: .23s; }
 @keyframes chipIn{
-    from { opacity:0; transform: translateY(8px); }
+    from { opacity:0; transform: translateY(6px); }
     to   { opacity:1; transform: none; }
 }
 
-.quick-action-btn .qa-icon{ display:inline-flex; color: var(--brand); transition: color .25s; }
-.quick-action-btn .qa-icon svg{ width: 15px; height: 15px; display:block; }
+.quick-action-btn .qa-icon{
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #dfe9f3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand);
+    transition: background .2s var(--ease), border-color .2s var(--ease);
+}
+.quick-action-btn .qa-icon svg{ width: 14px; height: 14px; display:block; }
+.quick-action-btn .qa-label{ flex: 1; min-width: 0; }
 
 .quick-action-btn:hover{
     transform: none;
-    background: #f8f9fb !important;
-    border-color: rgba(var(--brand-rgb), 0.28);
+    background: #ffffff !important;
+    border-color: rgba(var(--brand-rgb), 0.32) !important;
     box-shadow: none !important;
 }
+.quick-action-btn:hover .qa-icon{
+    background: rgba(var(--brand-rgb), 0.07);
+    border-color: rgba(var(--brand-rgb), 0.22);
+}
 .quick-action-btn:hover .qa-icon{ color: var(--brand-deep); }
-.quick-action-btn:active{ transform: translateY(0) scale(.97); }
+.quick-action-btn:active{ transform: scale(.98); }
 
 /* ============== Input Area (Footer) ============== */
 .input-area{
@@ -663,8 +695,9 @@
 .eniq-panel.dark-mode .powered-by{ background: #16131a; border-color: #2a2530; }
 .eniq-panel.dark-mode #message-input{ background: #221c28; border-color: transparent; color: #fff; }
 .eniq-panel.dark-mode #message-input:focus{ background: #2a2330; border-color: rgba(var(--brand-rgb),0.6); }
-.eniq-panel.dark-mode .quick-action-btn{ background: #221c28; border-color: #342b3c; color: #f3f4f6; box-shadow: none; }
-.eniq-panel.dark-mode .quick-action-btn:hover{ background: rgba(var(--brand-rgb),0.16); color: #fff; border-color: var(--brand); }
+.eniq-panel.dark-mode .quick-action-btn{ background: #1e2430 !important; border-color: #2f3a4a; color: #f3f4f6; box-shadow: none; }
+.eniq-panel.dark-mode .quick-action-btn .qa-icon{ background: #161b24; border-color: #2f3a4a; }
+.eniq-panel.dark-mode .quick-action-btn:hover{ background: #252d3a !important; border-color: rgba(var(--brand-rgb),0.45); color: #fff; }
 .eniq-panel.dark-mode .page-link-prompt { background: #221c28; border-color: #342b3c; }
 .eniq-panel.dark-mode .page-link-text { color: #f3f4f6; }
 .eniq-panel.dark-mode .page-link-btn-no { background: #2a2330; color: #cbd0d8; }
