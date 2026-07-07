@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.11';
+  const WIDGET_VERSION = '9.4.12';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -550,15 +550,26 @@
     });
   }
 
+  function dismissBadge() {
+    sessionStorage.setItem("eniq_badge_dismissed", "1");
+    if (badge) badge.classList.remove("show");
+  }
+
   function closeInvite(keepBadge) {
     if (inviteTimer) clearTimeout(inviteTimer);
     inviteTimer = null;
     if (invitePopup) invitePopup.classList.remove("open");
-    if (!keepBadge && badge) badge.classList.remove("show");
+    if (!keepBadge) dismissBadge();
   }
 
   function showBadge() {
+    if (sessionStorage.getItem("eniq_badge_dismissed") === "1") return;
     if (badge) badge.classList.add("show");
+  }
+
+  function markChatEngaged() {
+    sessionStorage.setItem("eniq_chat_engaged", "1");
+    dismissBadge();
   }
 
   function nudgeLauncher() {
@@ -587,6 +598,7 @@
   function scheduleInvite() {
     closeInvite(true);
     if (panel.classList.contains("open")) return;
+    if (sessionStorage.getItem("eniq_badge_dismissed") === "1") return;
     if (sessionStorage.getItem("eniq_invite_seen") === "1") {
       showBadge();
       return;
@@ -835,15 +847,15 @@
 
   launcher.addEventListener("click", () => {
     syncWidgetAssetsFromServer();
+    markChatEngaged();
     closeInvite();
-    if (badge) badge.classList.remove("show");
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
     if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
   });
 
   document.getElementById("inviteCta").addEventListener("click", () => {
+    markChatEngaged();
     closeInvite();
-    if (badge) badge.classList.remove("show");
     panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
     if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
   });
@@ -853,6 +865,7 @@
   document.getElementById("closeBtn").addEventListener("click", () => { 
     panel.classList.remove('open'); sessionStorage.setItem("eniq_is_open", "false"); document.getElementById("settingsMenu").classList.remove('active');
     if (emojiPanel) emojiPanel.classList.remove('open');
+    if (sessionStorage.getItem("eniq_chat_engaged") === "1") dismissBadge();
     scheduleInvite();
   });
   
