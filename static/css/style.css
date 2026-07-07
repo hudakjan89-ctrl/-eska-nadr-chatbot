@@ -1,14 +1,14 @@
 /* ============================================================
    Česká nádrž Chatbot – style.css  (Premium edition)
-   Brand: #005b9f · refined gradients, depth & micro-interactions
+   Brand: #40A7C2 · refined gradients, depth & micro-interactions
    Font: Source Sans 3
    ============================================================ */
 
 :root{
-    --brand: #005b9f;
-    --brand-2: #0078c8;       /* lighter – gradient top */
-    --brand-deep: #004a82;    /* darker  – hover / gradient bottom */
-    --brand-rgb: 0, 91, 159;
+    --brand: #40A7C2;
+    --brand-2: #63BCD4;       /* lighter – gradient top */
+    --brand-deep: #2F87A0;    /* darker  – hover / gradient bottom */
+    --brand-rgb: 64, 167, 194;
 
     --ink: #181b21;
     --ink-soft: #6b7280;
@@ -31,13 +31,13 @@
     font-family: "Source Sans 3", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-/* ============== Launcher wrap (fixed layer, host-safe) ============== */
+/* ============== Launcher wrap (host-safe, Shoptet) ============== */
 .eniq-launcher-wrap{
     position: fixed !important;
     right: 24px !important;
     bottom: 24px !important;
-    width: 66px !important;
-    height: 66px !important;
+    width: 69px !important;
+    height: 69px !important;
     z-index: 2147483640 !important;
     pointer-events: none;
     background: transparent !important;
@@ -52,11 +52,11 @@
     position: relative !important;
     right: auto !important;
     bottom: auto !important;
-    width: 66px !important;
-    height: 66px !important;
-    min-width: 66px !important;
-    min-height: 66px !important;
-    max-width: 66px !important;
+    width: 69px !important;
+    height: 69px !important;
+    min-width: 69px !important;
+    min-height: 69px !important;
+    max-width: 69px !important;
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
@@ -77,12 +77,11 @@
 
 .eniq-launcher::before{ display: none !important; }
 
-/* visible circular face — not a <button>, host CSS won't square it */
 .eniq-launcher-face{
     display: block;
     position: relative;
-    width: 66px;
-    height: 66px;
+    width: 69px;
+    height: 69px;
     border-radius: 50%;
     background: #ffffff;
     box-shadow: 0 10px 28px -6px rgba(var(--brand-rgb), 0.45), 0 4px 12px rgba(0,0,0,0.12);
@@ -91,7 +90,15 @@
     transition: box-shadow .3s var(--ease);
 }
 
-.eniq-launcher-face::before{ display: none; }
+/* brand ring on visible face */
+.eniq-launcher-face::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:2.5px solid var(--brand);
+    pointer-events:none;
+}
 @keyframes pulseRing{
     0%   { transform: scale(1);    opacity:.55; }
     70%  { opacity:0; }
@@ -139,11 +146,9 @@
 .eniq-launcher-avatar{
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    overflow: hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
 }
 
 .bot-img{ width: 100%; height: 100%; object-fit: cover; }
@@ -226,7 +231,7 @@
 /* ============== Header ============== */
 .chat-header{
     position: relative;
-    background: linear-gradient(150deg, #006bb3 0%, #003d6b 100%);
+    background: linear-gradient(150deg, var(--brand-2) 0%, var(--brand-deep) 100%);
     color: #ffffff;
     padding: 15px 16px;
     display:flex;
@@ -259,26 +264,17 @@
 .chat-header-avatar{
     width: 42px;
     height: 42px;
-    flex-shrink: 0;
-}
-.chat-header-avatar-face{
-    display: block;
-    width: 42px;
-    height: 42px;
     border-radius: 50%;
     background: #ffffff;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 3px;
-    box-sizing: border-box;
+    flex-shrink: 0;
     box-shadow: 0 0 0 3px rgba(255,255,255,0.22), 0 4px 12px rgba(0,0,0,0.18);
 }
-.chat-header-avatar .bot-img{
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    border-radius: 50%;
-    display: block;
-}
+.chat-header-avatar .bot-img{ object-fit: contain; }
 
 .chat-header-title{ font-weight: 700; font-size: 17px; line-height: 1.2; letter-spacing: .1px; }
 
@@ -399,20 +395,18 @@
 .message.user{ flex-direction: row-reverse; }
 
 .message-avatar{
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    width: 30px;
+    height: 30px;
     overflow: hidden;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #ffffff;
-    padding: 3px;
+    background: transparent;
     margin-top: 1px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border: none;
 }
-.message-avatar .bot-img{ width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+.message-avatar .bot-img{ object-fit: contain; }
 .message.user .message-avatar { display: none !important; }
 
 .message-content{
@@ -425,7 +419,6 @@
 }
 
 .message.bot .message-content{
-    width: fit-content;
     background: var(--card);
     border: 1px solid var(--line);
     color: var(--ink);
@@ -470,91 +463,50 @@
 @keyframes blinkCursor{ 50% { border-color: transparent; } }
 
 /* ============== Quick Actions ============== */
-.eniq-panel .quick-action-btn{
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    background: #f7fafc !important;
-    box-shadow: none !important;
-    outline: none !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-}
-
 .quick-actions-inline{
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    margin: 8px 0 0;
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.bubble-col .quick-actions-inline{
-    margin-bottom: 4px;
+    display:flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 2px 0 16px 0;
+    padding-left: 40px;
 }
 
 .quick-action-btn{
-    display: flex;
-    flex-direction: row;
+    display: inline-flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 8px 9px;
-    min-height: 42px;
-    border-radius: 11px;
-    font-size: 12px;
+    gap: 7px;
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
     font-weight: 600;
-    line-height: 1.25;
     cursor: pointer;
-    background: #f7fafc;
+    background: #ffffff;
     color: var(--ink);
-    border: 1px solid #e3ebf3;
-    transition: border-color .2s var(--ease), background .2s var(--ease);
-    animation: chipIn .35s var(--ease) both;
-    text-align: left;
-    white-space: normal;
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 3px rgba(18,18,40,0.05);
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease), background .25s var(--ease);
+    animation: chipIn .45s var(--ease) both;
 }
-.quick-action-btn:nth-child(1){ animation-delay: .03s; }
-.quick-action-btn:nth-child(2){ animation-delay: .07s; }
-.quick-action-btn:nth-child(3){ animation-delay: .11s; }
-.quick-action-btn:nth-child(4){ animation-delay: .15s; }
-.quick-action-btn:nth-child(5){ animation-delay: .19s; }
-.quick-action-btn:nth-child(6){ animation-delay: .23s; }
+.quick-action-btn:nth-child(1){ animation-delay: .04s; }
+.quick-action-btn:nth-child(2){ animation-delay: .10s; }
+.quick-action-btn:nth-child(3){ animation-delay: .16s; }
+.quick-action-btn:nth-child(4){ animation-delay: .22s; }
 @keyframes chipIn{
-    from { opacity:0; transform: translateY(6px); }
+    from { opacity:0; transform: translateY(8px); }
     to   { opacity:1; transform: none; }
 }
 
-.quick-action-btn .qa-icon{
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: #ffffff;
-    border: 1px solid #dfe9f3;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--brand);
-    transition: background .2s var(--ease), border-color .2s var(--ease);
-}
-.quick-action-btn .qa-icon svg{ width: 14px; height: 14px; display:block; }
-.quick-action-btn .qa-label{ flex: 1; min-width: 0; }
+.quick-action-btn .qa-icon{ display:inline-flex; color: var(--brand); transition: color .25s; }
+.quick-action-btn .qa-icon svg{ width: 15px; height: 15px; display:block; }
 
 .quick-action-btn:hover{
-    transform: none;
-    background: #ffffff !important;
-    border-color: rgba(var(--brand-rgb), 0.32) !important;
-    box-shadow: none !important;
-}
-.quick-action-btn:hover .qa-icon{
-    background: rgba(var(--brand-rgb), 0.07);
-    border-color: rgba(var(--brand-rgb), 0.22);
+    transform: translateY(-2px);
+    background: rgba(var(--brand-rgb), 0.05);
+    border-color: rgba(var(--brand-rgb), 0.5);
+    box-shadow: 0 9px 20px -8px rgba(var(--brand-rgb), 0.4);
 }
 .quick-action-btn:hover .qa-icon{ color: var(--brand-deep); }
-.quick-action-btn:active{ transform: scale(.98); }
+.quick-action-btn:active{ transform: translateY(0) scale(.97); }
 
 /* ============== Input Area (Footer) ============== */
 .input-area{
@@ -706,7 +658,7 @@
 
 /* ============== DARK MODE ============== */
 .eniq-panel.dark-mode{ background: #16131a; border-color: #2a2530; }
-.eniq-panel.dark-mode .chat-header{ background: linear-gradient(150deg, #006bb3, #003d6b); }
+.eniq-panel.dark-mode .chat-header{ background: linear-gradient(150deg, #2F87A0, #1c5265); }
 .eniq-panel.dark-mode .chat-box{
     background: radial-gradient(120% 60% at 50% 0%, rgba(var(--brand-rgb),0.10), transparent 60%), #120f16;
 }
@@ -717,9 +669,8 @@
 .eniq-panel.dark-mode .powered-by{ background: #16131a; border-color: #2a2530; }
 .eniq-panel.dark-mode #message-input{ background: #221c28; border-color: transparent; color: #fff; }
 .eniq-panel.dark-mode #message-input:focus{ background: #2a2330; border-color: rgba(var(--brand-rgb),0.6); }
-.eniq-panel.dark-mode .quick-action-btn{ background: #1e2430 !important; border-color: #2f3a4a; color: #f3f4f6; box-shadow: none; }
-.eniq-panel.dark-mode .quick-action-btn .qa-icon{ background: #161b24; border-color: #2f3a4a; }
-.eniq-panel.dark-mode .quick-action-btn:hover{ background: #252d3a !important; border-color: rgba(var(--brand-rgb),0.45); color: #fff; }
+.eniq-panel.dark-mode .quick-action-btn{ background: #221c28; border-color: #342b3c; color: #f3f4f6; box-shadow: none; }
+.eniq-panel.dark-mode .quick-action-btn:hover{ background: rgba(var(--brand-rgb),0.16); color: #fff; border-color: var(--brand); }
 .eniq-panel.dark-mode .page-link-prompt { background: #221c28; border-color: #342b3c; }
 .eniq-panel.dark-mode .page-link-text { color: #f3f4f6; }
 .eniq-panel.dark-mode .page-link-btn-no { background: #2a2330; color: #cbd0d8; }
@@ -934,12 +885,8 @@
 .eniq-panel.dark-mode .settings-action:hover{ background: #2a2330; }
 
 /* ============== Message timestamps ============== */
-.bubble-col{
-    display: inline-grid;
-    max-width: 82%;
-    align-items: stretch;
-}
-.message.user .bubble-col{ justify-items: end; }
+.bubble-col{ display: flex; flex-direction: column; max-width: 82%; align-items: flex-start; }
+.message.user .bubble-col{ align-items: flex-end; }
 .message .message-content{ max-width: 100%; }
 .message-time{
     font-size: 10px;
@@ -1191,30 +1138,19 @@
     right: 10px;
     width: 28px;
     height: 28px;
-    padding: 0 !important;
-    border: none !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    cursor: pointer;
-    display: block;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-}
-.invite-close-face{
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
+    border: none;
     background: rgba(18,18,40,0.05);
     color: #6b7280;
+    border-radius: 9px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background .2s, color .2s, transform .15s;
 }
 .invite-close svg{ width: 15px; height: 15px; }
-.invite-close:hover .invite-close-face{ background: rgba(18,18,40,0.1); color: var(--ink); }
-.invite-close:active .invite-close-face{ transform: scale(.9); }
+.invite-close:hover{ background: rgba(18,18,40,0.1); color: var(--ink); }
+.invite-close:active{ transform: scale(.9); }
 
 .invite-head{
     display: flex;
@@ -1227,27 +1163,13 @@
     position: relative;
     width: 42px;
     height: 42px;
-    flex-shrink: 0;
-}
-.invite-avatar-face{
-    position: relative;
-    display: block;
-    width: 42px;
-    height: 42px;
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 0 0 1px rgba(18,18,40,0.06), 0 4px 10px -3px rgba(0,0,0,0.18);
     padding: 3px;
-    box-sizing: border-box;
-    overflow: hidden;
+    flex-shrink: 0;
 }
-.invite-avatar .bot-img{
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    border-radius: 50%;
-    display: block;
-}
+.invite-avatar .bot-img{ width: 100%; height: 100%; object-fit: contain; }
 .invite-avatar .launcher-online{ width: 12px; height: 12px; border-width: 2px; bottom: 0; right: 0; }
 .invite-name{ font-weight: 700; font-size: 15.5px; color: var(--ink); line-height: 1.2; }
 .invite-status{
@@ -1270,19 +1192,6 @@
 
 .invite-cta{
     width: 100%;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    cursor: pointer;
-    display: block;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-}
-.invite-cta-face{
-    width: 100%;
     border: none;
     border-radius: 13px;
     padding: 12px 16px;
@@ -1291,29 +1200,17 @@
     font-size: 14.5px;
     font-weight: 700;
     font-family: inherit;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 9px;
     box-shadow: 0 8px 20px -6px rgba(var(--brand-rgb), 0.55);
     transition: transform .18s var(--ease), box-shadow .2s var(--ease), filter .2s;
-    box-sizing: border-box;
 }
-.invite-cta svg{ width: 17px; height: 17px; flex-shrink: 0; }
-.invite-cta:hover .invite-cta-face{ transform: translateY(-1px); box-shadow: 0 12px 26px -6px rgba(var(--brand-rgb), 0.65); filter: brightness(1.03); }
-.invite-cta:active .invite-cta-face{ transform: scale(.98); }
-
-/* Host e-shop button resets (Shoptet etc.) — invite popup */
-.invite-popup button,
-#invitePopup button{
-    margin: 0 !important;
-    line-height: normal !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-    font-family: inherit !important;
-    min-height: 0 !important;
-    max-width: none !important;
-}
+.invite-cta svg{ width: 17px; height: 17px; }
+.invite-cta:hover{ transform: translateY(-1px); box-shadow: 0 12px 26px -6px rgba(var(--brand-rgb), 0.65); filter: brightness(1.03); }
+.invite-cta:active{ transform: scale(.98); }
 
 /* dark mode */
 .invite-popup.dark-mode,
@@ -1324,9 +1221,9 @@ body.eniq-dark .invite-popup{ }
 }
 .invite-dark .invite-name{ color: #f3f4f6; }
 .invite-dark .invite-text{ color: #c9cdd6; }
-.invite-dark .invite-close-face{ background: rgba(255,255,255,0.08); color: #cbd0d8; }
-.invite-dark .invite-close:hover .invite-close-face{ background: rgba(255,255,255,0.16); color: #fff; }
-.invite-dark .invite-avatar-face{ background: #fff; }
+.invite-dark .invite-close{ background: rgba(255,255,255,0.08); color: #cbd0d8; }
+.invite-dark .invite-close:hover{ background: rgba(255,255,255,0.16); color: #fff; }
+.invite-dark .invite-avatar{ background: #fff; }
 
 @media (max-width: 600px){
     .invite-popup{
@@ -1441,6 +1338,122 @@ body.eniq-dark .invite-popup{ }
     .powered-by{ margin: 0; }
 }
 
+/* ============== Widget compatibility (current embed HTML) ============== */
+.chat-header-avatar-face{
+    display: block;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #ffffff;
+    overflow: hidden;
+    padding: 3px;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.22), 0 4px 12px rgba(0,0,0,0.18);
+}
+.chat-header-avatar .bot-img{
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+    display: block;
+}
+
+.eniq-panel .quick-action-btn{
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    background: #f7fafc !important;
+    box-shadow: none !important;
+    outline: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+.bubble-col .quick-actions-inline{
+    margin-bottom: 4px;
+}
+
+.invite-popup button,
+#invitePopup button{
+    margin: 0 !important;
+    line-height: normal !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-family: inherit !important;
+    min-height: 0 !important;
+    max-width: none !important;
+}
+.invite-close{
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    display: block;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+.invite-close-face{
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: rgba(18,18,40,0.05);
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s, color .2s, transform .15s;
+}
+.invite-close:hover .invite-close-face{ background: rgba(18,18,40,0.1); color: var(--ink); }
+.invite-close:active .invite-close-face{ transform: scale(.9); }
+.invite-avatar-face{
+    position: relative;
+    display: block;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(18,18,40,0.06), 0 4px 10px -3px rgba(0,0,0,0.18);
+    padding: 3px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.invite-cta{
+    width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    display: block;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+.invite-cta-face{
+    width: 100%;
+    border: none;
+    border-radius: 13px;
+    padding: 12px 16px;
+    background: linear-gradient(150deg, var(--brand-2), var(--brand));
+    color: #fff;
+    font-size: 14.5px;
+    font-weight: 700;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    box-shadow: 0 8px 20px -6px rgba(var(--brand-rgb), 0.55);
+    transition: transform .18s var(--ease), box-shadow .2s var(--ease), filter .2s;
+    box-sizing: border-box;
+}
+.invite-cta:hover .invite-cta-face{ transform: translateY(-1px); box-shadow: 0 12px 26px -6px rgba(var(--brand-rgb), 0.65); filter: brightness(1.03); }
+.invite-cta:active .invite-cta-face{ transform: scale(.98); }
+.invite-dark .invite-avatar-face{ background: #fff; }
+.invite-dark .invite-close-face{ background: rgba(255,255,255,0.08); color: #cbd0d8; }
+.invite-dark .invite-close:hover .invite-close-face{ background: rgba(255,255,255,0.16); color: #fff; }
+
 /* ============== Contact Form ============== */
 .contact-form-container {
     display: flex;
@@ -1505,7 +1518,6 @@ body.eniq-dark .invite-popup{ }
     padding: 10px;
     white-space: pre-wrap;
 }
-
 .cta-contact-btn {
     background: linear-gradient(150deg, var(--brand-2), var(--brand));
     color: #fff;
@@ -1522,13 +1534,11 @@ body.eniq-dark .invite-popup{ }
     transform: translateY(-1px);
     box-shadow: 0 10px 22px -6px rgba(var(--brand-rgb), 0.62);
 }
-
 .cta-block .message-content {
     background: var(--card) !important;
     border: 1px solid var(--line) !important;
     color: var(--ink) !important;
 }
-
 .eniq-panel.dark-mode .contact-form-container,
 .eniq-panel.dark-mode .cta-block .message-content {
     background: #221c28;
@@ -1545,10 +1555,10 @@ body.eniq-dark .invite-popup{ }
     border-color: rgba(var(--brand-rgb), 0.6);
 }
 
-/* legacy searching row alias */
 .searching-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; }
 .searching-row .message-avatar { width: 30px; height: 30px; }
 
 .chat-link { color: var(--brand); text-decoration: underline; font-weight: 600; word-break: break-word; }
 .chat-link:hover { color: var(--brand-deep); }
-.eniq-panel.dark-mode .chat-link { color: #7ec8f0; }
+.eniq-panel.dark-mode .chat-link { color: #9ad4e8; }
+.eniq-panel.dark-mode .quick-action-btn .qa-icon{ background: #161b24; border-color: #2f3a4a; }

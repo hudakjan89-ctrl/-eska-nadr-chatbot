@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.10';
+  const WIDGET_VERSION = '9.4.11';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -19,7 +19,7 @@
   cssLink.href = WIDGET_CSS_URL;
   if (document.head) document.head.appendChild(cssLink);
 
-  const BOT_IMG = `${BASE_URL}/static/img/bot.png?${assetV}`;
+  const BOT_IMG = `${BASE_URL}/static/img/logo-kapka.png?${assetV}`;
 
   async function syncWidgetAssetsFromServer() {
     try {
