@@ -42,7 +42,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ceska_nadrz.main")
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.eurouter.ai/api/v1").rstrip("/")
+LLM_API_KEY = os.getenv("EUROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
+LLM_MODEL = os.getenv("OPENROUTER_MODEL") or os.getenv("LLM_MODEL", "claude-sonnet-5")
+LLM_CHAT_URL = f"{LLM_API_BASE_URL}/chat/completions"
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 WIDGET_VERSION = "9.4.15"
@@ -410,6 +413,9 @@ async def purge_cloudflare_widget_cache():
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("LLM provider: %s | model: %s", LLM_API_BASE_URL, LLM_MODEL)
+    if not LLM_API_KEY:
+        logger.warning("EUROUTER_API_KEY / OPENROUTER_API_KEY nie je nastavený — chat nebude fungovať.")
     if resend_configured():
         logger.info("Lead notifikácie: Resend API (HTTPS) — odporúčané pre Docker hosting.")
     elif smtp_configured():
@@ -456,6 +462,15 @@ async def health_check():
         "widget_version": WIDGET_VERSION,
     }
 
+def _llm_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {LLM_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": WIDGET_PUBLIC_BASE,
+        "X-EUrouter-Title": "Ceska Nadrz Bot",
+    }
+
+
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]])
@@ -468,9 +483,9 @@ PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o p
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "anthropic/claude-opus-4.7", "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                LLM_CHAT_URL,
+                headers=_llm_headers(),
+                json={"model": LLM_MODEL, "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
@@ -617,22 +632,17 @@ async def chat(request: Request, chat_req: ChatRequest):
     messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
-        if not OPENROUTER_API_KEY: raise Exception("API Key is missing.")
+        if not LLM_API_KEY: raise Exception("API Key is missing.")
 
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://nadrz.eniq.eu",
-                    "X-Title": "Ceska Nadrz Bot"
-                },
-                json={"model": "anthropic/claude-opus-4.7", "messages": messages, "temperature": 0.2, "max_tokens": 400}
+                LLM_CHAT_URL,
+                headers=_llm_headers(),
+                json={"model": LLM_MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 400}
             )
             
             if response.status_code != 200:
-                raise Exception(f"OpenRouter Error {response.status_code}: {response.text}")
+                raise Exception(f"LLM API Error {response.status_code}: {response.text}")
             
             data = response.json()
             assistant_message = data["choices"][0]["message"]["content"]
