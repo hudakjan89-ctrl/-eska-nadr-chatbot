@@ -28,7 +28,10 @@ from xml_parser import fetch_and_parse_xml
 from database import upsert_products, search_products, search_knowledge
 from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint
 from admin import router as admin_router, refresh_dashboard_cache
-from logger import log_message, log_event, emit_event, build_user_hash
+from logger import (
+    log_message, log_event, emit_event, build_user_hash,
+    DB_PATH, session_has_messages, load_session_messages, load_recommended_urls,
+)
 from alerter import fire_alert
 from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured
 
@@ -211,6 +214,14 @@ if img_dir.is_dir():
 
 sessions = {}
 recommended_urls = {}  # session_id -> list of already recommended product URLs
+
+
+def ensure_session_loaded(session_id: str) -> None:
+    """Po redeployi obnoví konverzáciu a odporúčané URL zo SQLite."""
+    if session_id not in sessions:
+        sessions[session_id] = load_session_messages(session_id)
+    if session_id not in recommended_urls:
+        recommended_urls[session_id] = load_recommended_urls(session_id)
 
 class ChatRequest(BaseModel):
     message: str = Field(..., max_length=500)
@@ -422,6 +433,7 @@ async def startup_event():
         logger.warning(
             "GITHUB_TOKEN nie je nastavený — knowledge base sa načíta len z lokálnej cache."
         )
+    logger.info("Analytics DB: %s", DB_PATH)
     logger.info("Aplikacia startuje. Nacitavam knowledge base...")
     sections = load_knowledge_on_startup()
     logger.info("Knowledge base pripravena (%d sekcii).", sections)
@@ -474,12 +486,8 @@ async def chat(request: Request, chat_req: ChatRequest):
         raise HTTPException(status_code=403, detail="Forbidden: Invalid Token")
 
     session_id = chat_req.session_id or str(uuid.uuid4())
-    is_new_session = session_id not in sessions
-    if is_new_session:
-        sessions[session_id] = []
-        
-    if session_id not in recommended_urls:
-        recommended_urls[session_id] = []
+    ensure_session_loaded(session_id)
+    is_new_session = not session_has_messages(session_id)
     user_id_hash = build_user_hash(session_id)
     user_message_id = str(uuid.uuid4())
     bot_message_id = str(uuid.uuid4())

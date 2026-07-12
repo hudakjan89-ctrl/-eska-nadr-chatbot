@@ -10,7 +10,14 @@ logger = logging.getLogger("ceska_nadrz.database")
 logger.info("Načítavam jazykový AI model (Qdrant)...")
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
-client = QdrantClient(path="./qdrant_db")
+_qdrant_path = os.getenv("QDRANT_PATH")
+if not _qdrant_path:
+    _data_dir = os.getenv("DATA_DIR", "data")
+    _qdrant_path = os.path.join(_data_dir, "qdrant_db")
+os.makedirs(_qdrant_path, exist_ok=True)
+logger.info("Qdrant path: %s", _qdrant_path)
+
+client = QdrantClient(path=_qdrant_path)
 COLLECTION_PRODUCTS = "ceskanadrz_products"
 COLLECTION_KNOWLEDGE = "ceskanadrz_knowledge"  # Nová databáza pre vedomosti
 

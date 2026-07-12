@@ -1,12 +1,23 @@
+import os
 import sqlite3
 from datetime import datetime
 import json
 import hashlib
+from pathlib import Path
 
-DB_PATH = "analytics.db"
+_DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+_DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = os.getenv("ANALYTICS_DB_PATH", str(_DATA_DIR / "analytics.db"))
+
+
+def _connect():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
 
 def init_analytics_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect()
     c = conn.cursor()
     # Tabuľka pre históriu správ
     c.execute('''CREATE TABLE IF NOT EXISTS messages 
@@ -30,7 +41,7 @@ def init_analytics_db():
     conn.close()
 
 def log_message(session_id: str, role: str, content: str):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect()
     c = conn.cursor()
     c.execute("INSERT INTO messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
               (session_id, role, content, datetime.now()))
@@ -38,7 +49,7 @@ def log_message(session_id: str, role: str, content: str):
     conn.close()
 
 def log_event(event_type: str):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect()
     c = conn.cursor()
     c.execute("INSERT INTO stats (event_type, timestamp) VALUES (?, ?)", (event_type, datetime.now()))
     conn.commit()
@@ -57,7 +68,7 @@ def emit_event(
     timestamp = None,
     sync_status: str = "pending"
 ):
-    conn = sqlite3.connect(DB_PATH)
+    conn = _connect()
     c = conn.cursor()
     metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
     c.execute(
@@ -77,5 +88,60 @@ def emit_event(
     )
     conn.commit()
     conn.close()
+
+
+def session_has_messages(session_id: str) -> bool:
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM messages WHERE session_id = ? LIMIT 1", (session_id,))
+    row = c.fetchone()
+    conn.close()
+    return row is not None
+
+
+def load_session_messages(session_id: str, limit: int = 50) -> list:
+    """Obnoví konverzáciu zo SQLite pre LLM kontext po redeployi."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """SELECT role, content FROM messages
+           WHERE session_id = ?
+             AND role IN ('user', 'bot')
+             AND content NOT LIKE '[KONTAKTNÍ FORMULÁŘ]%'
+             AND content NOT LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%'
+           ORDER BY id DESC
+           LIMIT ?""",
+        (session_id, limit),
+    )
+    rows = c.fetchall()
+    conn.close()
+
+    messages = []
+    for role, content in reversed(rows):
+        llm_role = "assistant" if role == "bot" else "user"
+        messages.append({"role": llm_role, "content": content})
+    return messages
+
+
+def load_recommended_urls(session_id: str) -> list:
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """SELECT metadata FROM events
+           WHERE session_id = ? AND event_name = 'product_recommended'
+           ORDER BY id ASC""",
+        (session_id,),
+    )
+    urls = []
+    for (metadata_json,) in c.fetchall():
+        try:
+            meta = json.loads(metadata_json or "{}")
+            url = meta.get("url")
+            if url and url not in urls:
+                urls.append(url)
+        except (json.JSONDecodeError, TypeError):
+            continue
+    conn.close()
+    return urls
 
 init_analytics_db()

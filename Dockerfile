@@ -20,6 +20,11 @@ RUN grep -q "Premium edition" static/css/style.css && \
     grep -q "invitePopup" static/js/chat.js && \
     test $(wc -c < static/css/style.css) -gt 40000
 
+# Trvalé úložisko pre chat históriu (analytics.db) a vektorovú DB
+ENV DATA_DIR=/data
+RUN mkdir -p /data
+VOLUME ["/data"]
+
 EXPOSE 8000
 
 # Spustenie aplikácie (S pridanou medzerou po CMD)
