@@ -17,6 +17,15 @@ def clean_html(raw_html: str) -> str:
     cleantext = re.sub(cleanr, ' ', raw_html)
     return " ".join(cleantext.split())
 
+def detect_placement(name: str, url: str = "") -> str:
+    combined = f"{(name or '').lower()} {(url or '').lower()}"
+    if "nadzem" in combined:
+        return "nadzemni"
+    if "samonos" in combined or "obetonov" in combined:
+        return "podzemni"
+    return "neznamo"
+
+
 async def fetch_and_parse_xml():
     url = "https://www.ceskanadrz.cz/universal.xml"
     logger.info("Stahujem XML feed (Universal)...")
@@ -62,7 +71,8 @@ async def fetch_and_parse_xml():
                     'image_url': img_url,  # <--- ULOŽENIE OBRÁZKU DO DATABÁZY
                     'description': desc_text,
                     'price': price_val,
-                    'category': cat.text.strip() if cat is not None and cat.text else ''
+                    'category': cat.text.strip() if cat is not None and cat.text else '',
+                    'placement': detect_placement(name.text.strip(), link.text.strip()),
                 })
                 
         logger.info(f"Úspěšně staženo a připraveno {len(products)} produktů (včetně obrázků).")

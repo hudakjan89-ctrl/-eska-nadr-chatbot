@@ -25,7 +25,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
-from database import upsert_products, search_products, search_knowledge
+from database import upsert_products, search_products, search_knowledge, expand_search_query
 from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import (
@@ -258,8 +258,8 @@ URL_MAP = {
     "https://www.ceskanadrz.cz/pozarni-a-retencni-nadrze-k-obetonovani/":["pozarni k obetonovani", "retencni k obetonovani"],
     "https://www.ceskanadrz.cz/dvouplastove-pozarni-a-retencni-nadrze/":["dvouplastove pozarni", "dvouplastove retencni"],
     "https://www.ceskanadrz.cz/samonosne-pozarni-a-retencni-nadrze/":["samonosne pozarni", "samonosne retencni"],
-    "https://www.ceskanadrz.cz/nadrze-na-destovou-vodu/":["destovou vodu", "na destovku", "nadrze na destovku", "na zalevani"],
-    "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani"],
+    "https://www.ceskanadrz.cz/nadrze-na-destovou-vodu/":["destovou vodu", "na destovku", "nadrze na destovku", "na zalevani", "podzemni destovka", "podzemni nadrz na destovku"],
+    "https://www.ceskanadrz.cz/nadrze-na-vodu-k-obetonovani/":["nadrze k obetonovani", "nadrz k obetonovani", "obetonovani", "podzemni", "pod zem", "do zeme", "podzemni nadrz", "samonosna nadrz"],
     "https://www.ceskanadrz.cz/sachty-na-vrt/":["sachty na vrt", "sachtu na vrt", "na vrt"],
     "https://www.ceskanadrz.cz/precerpavaci-jimky-k-obetonovani/":["precerpavaci jimka k obetonovani"],
     "https://www.ceskanadrz.cz/precerpavaci-jimky/":["precerpavaci", "precerpavack"],
@@ -478,23 +478,50 @@ def _llm_headers() -> dict:
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]])
-    prompt = f"""Jsi interní vyhledávací systém e-shopu. Přečti si historii konverzace a poslední zprávu. 
-Tvojím JEDINÝM úkolem je vytvořit z toho jednu přesnou vyhledávací frázi (3-6 slov) pro fulltextové vyhledávání v databázi produktů.
+    prompt = f"""Jsi interní vyhledávací systém e-shopu Česká nádrž. Přečti si historii konverzace a poslední zprávu.
+Tvojím JEDINÝM úkolem je vytvořit z toho jednu přesnou vyhledávací frázi (3-8 slov) pro vyhledávání v databázi produktů.
+
 Historie konverzace:
 {history_text}
 Poslední zpráva: {new_message}
-PRAVIDLA: Napiš POUZE samotnou vyhledávací frázi bez uvozovek. Pokud jde o pozdrav nebo věc mimo e-shop, napiš NONE."""
+
+PRAVIDLA:
+- Napiš POUZE samotnou vyhledávací frázi bez uvozovek.
+- Vždy zachovej účel (dešťovka/pitná/splašky/retenční) a objem (např. 10m3) z historie.
+- Pokud zákazník řekne „podzemní“, „pod zem“ nebo „do země“, NEPOUŽÍVEJ jen slovo podzemní. Místo toho hledej „samonosná nádrž“ nebo „nádrž k obetonování“ a zachovej účel a objem.
+- Pokud zákazník řekne „nadzemní“, hledej „nadzemní volně stojící nádrž“.
+- Nikdy nevracej jen jedno slovo typu „podzemní“, „nadzemní“ nebo samotný objem „5 m3“.
+- Pokud jde o pozdrav nebo věc mimo e-shop, napiš NONE."""
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 LLM_CHAT_URL,
                 headers=_llm_headers(),
-                json={"model": LLM_MODEL, "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 20}
+                json={"model": LLM_MODEL, "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 40}
             )
             data = response.json()
             return data["choices"][0]["message"]["content"].strip().replace('"', '')
     except Exception:
         return new_message
+
+
+def enrich_search_query(optimized_query: str, chat_history: list, new_message: str) -> str:
+    if not optimized_query or optimized_query in ("NONE", "CONTACT_CAPTURE"):
+        return optimized_query
+
+    combined = f"{optimized_query} {new_message}".strip()
+    normalized = remove_diacritics(combined.lower())
+    placement_only_terms = {
+        "podzemni", "nadzemni", "pod", "nad", "pod zem", "nad zem", "do zeme",
+    }
+    words = normalized.split()
+    if normalized in placement_only_terms or (len(words) <= 2 and any(term in normalized for term in placement_only_terms)):
+        user_context = " ".join(
+            msg["content"] for msg in chat_history[-6:] if msg.get("role") == "user"
+        )
+        combined = f"{user_context} {new_message}".strip()
+
+    return expand_search_query(combined)
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -574,10 +601,17 @@ async def chat(request: Request, chat_req: ChatRequest):
     products_context = ""
     found_products = []
     if optimized_query != "NONE":
-        found_products = search_products(optimized_query, top_k=8)
+        search_query = enrich_search_query(optimized_query, sessions[session_id], chat_req.message)
+        found_products = search_products(search_query, top_k=8)
         products_context = "NALEZENÉ PRODUKTY V E-SHOPU:\n"
         for p in found_products:
-            products_context += f"- Název: {p['name']} | Cena: {p['price']} | Odkaz: {p['url']} | Kategorie: {p['category']}\n"
+            placement = p.get("placement", "")
+            placement_label = {
+                "podzemni": "podzemní (samonosná/k obetonování)",
+                "nadzemni": "nadzemní",
+            }.get(placement, "")
+            placement_suffix = f" | Umístění: {placement_label}" if placement_label else ""
+            products_context += f"- Název: {p['name']} | Cena: {p['price']} | Odkaz: {p['url']} | Kategorie: {p['category']}{placement_suffix}\n"
         if not found_products:
             products_context = "V databázi produktů nebylo nalezeno nic přesného."
             
@@ -611,7 +645,7 @@ async def chat(request: Request, chat_req: ChatRequest):
         "1) STRUČNOST A RELEVANCE: Odpovídej stručně a k věci. Dlouhé odpovědi piš jen tehdy, když si o to zákazník výslovně řekne. Nepřidávej irelevantní kontext ani 'pro úplnost' další informace, na které se neptal.\n\n"
         "2) LEGISLATIVA A NORMY — PŘÍSNÝ ZÁKAZ SPONTÁNNÍCH RAD: Neodpovídej na legislativní, vodoprávní ani normativní otázky (ČSN, NV 401/2015, povolení, vypouštění, vsakování vs. vodoteče, kolaudace atd.), POKUD se zákazník výslovně NEZEPTÁ. Když se ptá na velikost, typ nebo doporučení produktu, nepřidávej věty o tom, 'kam se smí vypouštět' ani 'co vyžaduje úřad'. Pokud zákazník legislativu výslovně zmíní, řekni obecně, že podmínky určuje místní vodoprávní úřad a doporuč ověření u něj — nevymýšlej si paragrafy ani konkrétní limity.\n\n"
         "3) KONZISTENCE S VLASTNÍMI PŘEDCHOZÍMI ODPOVĚDMI: Pokud jsi v této konverzaci již doporučil konkrétní produkt nebo typ řešení, v dalších zprávách tento fakt neodvolávej. Nikdy neříkej 'nemáme nádrže na vodu', pokud jsi o kus výš nějakou nádrž doporučil. Když si nejsi jistý, odkaž zákazníka na svou předchozí odpověď místo popření.\n\n"
-        "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná), orientační objem, umístění (zelená plocha / pojezd / spodní voda). Jakmile toto víš, okamžitě nabídni nejvhodnější produkt ze sekce NALEZENÉ PRODUKTY.\n\n"
+        "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná), orientační objem, případně zatížení (zelená plocha / pojezd / spodní voda). Pokud zákazník řekne podzemní, okamžitě nabídni samonosnou nebo k obetonování nádrž ze sekce NALEZENÉ PRODUKTY — neptej se znovu na nadzemní vs. podzemní.\n\n"
         "5) ZÁKAZ VYMÝŠLENÍ: Čerpej VÝHRADNĚ ze sekcí 'NALEZENÉ PRODUKTY' a 'FIREMNÍ DATABÁZE'. Pokud tam informace není, řekni, že ji nemáš, a nabídni kontakt na obchod@ceskanadrz.cz. Nevymýšlej si parametry, ceny ani vlastnosti, které nejsou v datech.\n\n"
         "6) ATYPICKÉ POŽADAVKY: Pokud zákazník chce něco, co v produktech není (atypický objem, speciální provedení), odkaž ho na výrobu na míru podle dodaných rozměrů: 'Napište svůj přesný požadavek, rozměry a účel na obchod@ceskanadrz.cz a kolegové posoudí vhodné řešení.' Nikdy netvrď, že nádrž vyrobíme nebo svaříme přímo na místě u zákazníka.\n\n"
         "7) ODKAZ NA PRODUKT: Když doporučíš konkrétní produkt z e-shopu, VŽDY přidej na úplný konec zprávy skrytý tag přesně ve formátu [URL: https://www.ceskanadrz.cz/konkretni-produkt/]. Tag musí mít hranaté závorky, nesmí být v markdown odkazu a nesmí být volně v textu.\n\n"
@@ -626,6 +660,7 @@ async def chat(request: Request, chat_req: ChatRequest):
         "- Když se zákazník ptá, s kým to může probrat, odpověz kontaktem na obchodní oddělení: obchod@ceskanadrz.cz a telefon 737 234 461. Nepiš, že se mu ozveme, pokud ještě nezanechal e-mail nebo telefon.\n\n"
         "- Když se zákazník ptá na objednávku, objednání v chatu, dokončení objednávky nebo chce poradit s objednáním konkrétního produktu, řekni stručně, že objednávku v chatu přímo nevytvoří, ale může zanechat kontakt; zavoláme mu a objednávku společně uděláme telefonicky. Na konec zprávy vždy přidej tag [SHOW_CONTACT_FORM].\n\n"
         "TECHNICKÁ FAKTA (často chybovaná):\n"
+        "- Podzemní nádrže jsou náš hlavní sortiment. V katalogu se označují jako SAMONOSNÉ nebo K OBETONOVÁNÍ. Když zákazník řekne podzemní, hledej tyto produkty v NALEZENÉ PRODUKTY. Nikdy neříkej, že podzemní nádrže nemáme.\n"
         "- Samonosné septiky NEVYŽADUJÍ obetonování — zvládají standardní podmínky v zemi bez betonu.\n"
         "- U septiků zákazníkům standardně doporučuj tříkomorové septiky. Nenabízej šesti-komorové ani zbytečně větší septiky, pokud si zákazník výslovně neřekne o velkou kapacitu nebo z dat jasně nevyplývá trvalé vysoké zatížení. U chat a víkendového provozu zohledni, že nejde o plné celoroční obsazení, a preferuj menší vhodné řešení.\n"
         "- K septikům spontánně nepřidávej zemní pískový filtr, vypouštění, povolení ani jiné legislativní doplňky, pokud se zákazník výslovně neptá na legislativu nebo vypouštění.\n"

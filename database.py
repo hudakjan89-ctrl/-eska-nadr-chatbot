@@ -1,9 +1,12 @@
 import os
+import re
+import unicodedata
 import uuid
 import logging
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
+from xml_parser import detect_placement
 
 logger = logging.getLogger("ceska_nadrz.database")
 
@@ -20,6 +23,99 @@ logger.info("Qdrant path: %s", _qdrant_path)
 client = QdrantClient(path=_qdrant_path)
 COLLECTION_PRODUCTS = "ceskanadrz_products"
 COLLECTION_KNOWLEDGE = "ceskanadrz_knowledge"  # Nová databáza pre vedomosti
+
+PLACEMENT_SYNONYMS = {
+    "podzemni": "podzemní do země pod zemí samonosná k obetonování zakopaná",
+    "nadzemni": "nadzemní volně stojící nad zemí",
+    "neznamo": "",
+}
+
+ACCESSORY_HINTS = (
+    "sběrač", "sberac", "zásuvka", "zasuvka", "poklop", "hadice", "filtr",
+    "čerpadlo", "cerpadlo", "přečerpávací stanice", "precerpavaci stanice",
+)
+
+def _remove_diacritics(text: str) -> str:
+    return ''.join(c for c in unicodedata.normalize('NFD', text or '') if unicodedata.category(c) != 'Mn')
+
+def _normalize_text(text: str) -> str:
+    text = _remove_diacritics((text or "").lower())
+    text = text.replace("m³", "m3")
+    text = re.sub(r'(\d+)\s*m\s*3', r'\1m3', text)
+    return text
+
+def product_embedding_text(prod: dict) -> str:
+    placement = prod.get("placement") or detect_placement(prod.get("name", ""), prod.get("url", ""))
+    synonyms = PLACEMENT_SYNONYMS.get(placement, "")
+    return (
+        f"Název: {prod['name']} "
+        f"Umístění: {synonyms} "
+        f"Kategorie: {prod.get('category', '')} "
+        f"Popis: {prod.get('description', '')}"
+    )
+
+def expand_search_query(query: str) -> str:
+    q = _normalize_text(query)
+    extra = []
+
+    if any(term in q for term in ("podzemni", "pod zem", "do zeme", "zakopan", "zakopat")):
+        extra.extend(["samonosná nádrž", "nádrž k obetonování", "podzemní"])
+    if any(term in q for term in ("nadzemni", "nad zem", "volne stojici", "volne stoj")):
+        extra.extend(["nadzemní volně stojící"])
+    if "retenc" in q:
+        extra.append("retenční nádrž")
+    if "destov" in q or "destovka" in q:
+        extra.append("nádrž na dešťovou vodu")
+
+    if extra:
+        return f"{query} {' '.join(extra)}"
+    return query
+
+def _is_tank_product(prod: dict) -> bool:
+    name = _normalize_text(prod.get("name", ""))
+    if "nadrz" not in name:
+        return False
+    return not any(hint in name for hint in ACCESSORY_HINTS)
+
+def _product_rank_score(prod: dict, query: str) -> int:
+    q = _normalize_text(query)
+    name = _normalize_text(prod.get("name", ""))
+    placement = prod.get("placement") or detect_placement(prod.get("name", ""), prod.get("url", ""))
+    score = 0
+
+    wants_underground = any(term in q for term in ("podzemni", "pod zem", "do zeme", "samonos", "obetonov"))
+    wants_aboveground = any(term in q for term in ("nadzemni", "nad zem", "volne stojici"))
+
+    if wants_underground:
+        if placement == "podzemni":
+            score += 120
+        if "nadzem" in name:
+            score -= 250
+    if wants_aboveground:
+        if placement == "nadzemni":
+            score += 120
+        if placement == "podzemni":
+            score -= 80
+
+    if any(term in q for term in ("nadrz", "retenc", "destov", "destovka", "vodu")):
+        if _is_tank_product(prod):
+            score += 60
+        else:
+            score -= 40
+
+    volume_match = re.search(r'(\d+)\s*m\s*3', q) or re.search(r'(\d+)m3', q)
+    if volume_match:
+        volume = volume_match.group(1)
+        if f"{volume}m3" in name.replace(" ", ""):
+            score += 50
+
+    return score
+
+def rerank_products(products: list, query: str) -> list:
+    if not products:
+        return products
+    ranked = sorted(products, key=lambda prod: _product_rank_score(prod, query), reverse=True)
+    return ranked
 
 def collection_exists(coll_name):
     try:
@@ -48,24 +144,30 @@ def upsert_products(products):
     if not products:
         return
     points = []
-    texts = [f"Název: {prod['name']} Kategorie: {prod.get('category', '')} Popis: {prod.get('description', '')}" for prod in products]
+    texts = [product_embedding_text(prod) for prod in products]
     logger.info(f"Generujem embeddingy pre {len(products)} produktov...")
     vectors = model.encode(texts, batch_size=32, show_progress_bar=False).tolist()
     for prod, vector in zip(products, vectors):
+        payload = dict(prod)
+        payload["placement"] = prod.get("placement") or detect_placement(prod.get("name", ""), prod.get("url", ""))
         points.append(PointStruct(
             id=prod['id'],
             vector=vector,
-            payload=prod
+            payload=payload
         ))
     if points:
         client.upsert(collection_name=COLLECTION_PRODUCTS, points=points)
         logger.info(f"Úspešne aktualizovaných {len(points)} produktov v databáze.")
 
 def search_products(query: str, top_k=10):
-    if not collection_exists(COLLECTION_PRODUCTS): return[]
-    query_vector = model.encode(query, show_progress_bar=False).tolist()
-    hits = client.search(collection_name=COLLECTION_PRODUCTS, query_vector=query_vector, limit=top_k)
-    return [hit.payload for hit in hits]
+    if not collection_exists(COLLECTION_PRODUCTS):
+        return []
+    expanded_query = expand_search_query(query)
+    query_vector = model.encode(expanded_query, show_progress_bar=False).tolist()
+    fetch_k = max(top_k * 3, 24)
+    hits = client.search(collection_name=COLLECTION_PRODUCTS, query_vector=query_vector, limit=fetch_k)
+    products = [hit.payload for hit in hits]
+    return rerank_products(products, expanded_query)[:top_k]
 
 # ================= VEDOMOSTNÁ BÁZA (FAQ, INFO) =================
 def load_and_upsert_knowledge(filepath="knowledge_base.md"):
