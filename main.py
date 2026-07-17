@@ -30,7 +30,7 @@ from knowledge_github import load_knowledge_on_startup, is_github_configured, gi
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import (
     log_message, log_event, emit_event, build_user_hash,
-    DB_PATH, session_has_messages, load_session_messages, load_recommended_urls,
+    DB_PATH, session_has_messages, session_has_event, load_session_messages, load_recommended_urls,
 )
 from alerter import fire_alert
 from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured
@@ -48,7 +48,7 @@ LLM_MODEL = os.getenv("OPENROUTER_MODEL") or os.getenv("LLM_MODEL", "claude-sonn
 LLM_CHAT_URL = f"{LLM_API_BASE_URL}/chat/completions"
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.4.15"
+WIDGET_VERSION = "9.4.16"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -230,6 +230,10 @@ class ChatRequest(BaseModel):
     message: str = Field(..., max_length=500)
     session_id: Optional[str] = None
     language: Optional[str] = "cs"
+    page_url: Optional[str] = None
+    page_path: Optional[str] = None
+    page_title: Optional[str] = None
+    referrer: Optional[str] = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -507,13 +511,22 @@ async def chat(request: Request, chat_req: ChatRequest):
     user_message_id = str(uuid.uuid4())
     bot_message_id = str(uuid.uuid4())
 
-    if is_new_session:
+    if is_new_session and not session_has_event(session_id, "chat_started"):
+        page_metadata = {"source": "web_widget"}
+        if chat_req.page_url:
+            page_metadata["page_url"] = chat_req.page_url
+        if chat_req.page_path:
+            page_metadata["page_path"] = chat_req.page_path
+        if chat_req.page_title:
+            page_metadata["page_title"] = chat_req.page_title
+        if chat_req.referrer:
+            page_metadata["referrer"] = chat_req.referrer
         emit_event(
             event_name="chat_started",
             session_id=session_id,
             user_id_hash=user_id_hash,
             language=chat_req.language,
-            metadata={"source": "web_widget"}
+            metadata=page_metadata
         )
     
     is_contact_capture = "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message or "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message

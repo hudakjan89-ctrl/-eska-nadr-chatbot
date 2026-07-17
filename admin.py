@@ -118,6 +118,69 @@ def _extract_lead_data(content: str):
 def _percent(part, total):
     return round((part / total) * 100, 2) if total else 0.0
 
+def _extract_entry_page_from_metadata(metadata):
+    meta = metadata if isinstance(metadata, dict) else _safe_json(metadata)
+    if not isinstance(meta, dict):
+        return {
+            "entry_page_url": None,
+            "entry_page_path": None,
+            "entry_page_title": None,
+            "entry_referrer": None,
+            "entry_trigger": None,
+        }
+    return {
+        "entry_page_url": meta.get("page_url"),
+        "entry_page_path": meta.get("page_path"),
+        "entry_page_title": meta.get("page_title"),
+        "entry_referrer": meta.get("referrer"),
+        "entry_trigger": meta.get("trigger"),
+    }
+
+def _extract_entry_page_from_events(event_rows):
+    for row in event_rows:
+        if row["event_name"] == "chat_started":
+            return _extract_entry_page_from_metadata(row["metadata"])
+    return _extract_entry_page_from_metadata({})
+
+_ENTRY_PAGE_SELECT = """
+    (SELECT json_extract(e.metadata, '$.page_url')
+     FROM events e
+     WHERE e.session_id = m.session_id AND e.event_name = 'chat_started'
+     ORDER BY e.id ASC LIMIT 1) as entry_page_url,
+    (SELECT json_extract(e.metadata, '$.page_path')
+     FROM events e
+     WHERE e.session_id = m.session_id AND e.event_name = 'chat_started'
+     ORDER BY e.id ASC LIMIT 1) as entry_page_path,
+    (SELECT json_extract(e.metadata, '$.page_title')
+     FROM events e
+     WHERE e.session_id = m.session_id AND e.event_name = 'chat_started'
+     ORDER BY e.id ASC LIMIT 1) as entry_page_title,
+    (SELECT json_extract(e.metadata, '$.referrer')
+     FROM events e
+     WHERE e.session_id = m.session_id AND e.event_name = 'chat_started'
+     ORDER BY e.id ASC LIMIT 1) as entry_referrer,
+    (SELECT json_extract(e.metadata, '$.trigger')
+     FROM events e
+     WHERE e.session_id = m.session_id AND e.event_name = 'chat_started'
+     ORDER BY e.id ASC LIMIT 1) as entry_trigger
+"""
+
+def _conversation_payload(row):
+    return {
+        "session_id": row["session_id"],
+        "started_at": row["started_at"],
+        "last_message_at": row["last_message_at"],
+        "message_count": row["message_count"],
+        "user_messages": row["user_messages"],
+        "bot_messages": row["bot_messages"],
+        "has_lead": bool(row["has_lead"]),
+        "entry_page_url": row["entry_page_url"],
+        "entry_page_path": row["entry_page_path"],
+        "entry_page_title": row["entry_page_title"],
+        "entry_referrer": row["entry_referrer"],
+        "entry_trigger": row["entry_trigger"],
+    }
+
 def _build_dashboard_snapshot():
     conn = _connect()
     c = conn.cursor()
@@ -223,13 +286,14 @@ def _build_dashboard_snapshot():
 
     conversation_rows = _rows(
         c,
-        """SELECT m.session_id,
+        f"""SELECT m.session_id,
                   MIN(m.timestamp) as started_at,
                   MAX(m.timestamp) as last_message_at,
                   COUNT(*) as message_count,
                   SUM(CASE WHEN m.role='user' THEN 1 ELSE 0 END) as user_messages,
                   SUM(CASE WHEN m.role='bot' THEN 1 ELSE 0 END) as bot_messages,
-                  MAX(CASE WHEN m.content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR m.content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%' THEN 1 ELSE 0 END) as has_lead
+                  MAX(CASE WHEN m.content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR m.content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%' THEN 1 ELSE 0 END) as has_lead,
+                  {_ENTRY_PAGE_SELECT}
            FROM messages m
            GROUP BY m.session_id
            ORDER BY MAX(m.timestamp) DESC
@@ -349,15 +413,7 @@ def _build_dashboard_snapshot():
         },
         "conversations": {
             "latest": [
-                {
-                    "session_id": row["session_id"],
-                    "started_at": row["started_at"],
-                    "last_message_at": row["last_message_at"],
-                    "message_count": row["message_count"],
-                    "user_messages": row["user_messages"],
-                    "bot_messages": row["bot_messages"],
-                    "has_lead": bool(row["has_lead"])
-                }
+                _conversation_payload(row)
                 for row in conversation_rows
             ]
         },
@@ -866,7 +922,8 @@ async def get_dashboard_conversations(request: Request, limit: int = 100, offset
                    COUNT(*) as message_count,
                    SUM(CASE WHEN m.role='user' THEN 1 ELSE 0 END) as user_messages,
                    SUM(CASE WHEN m.role='bot' THEN 1 ELSE 0 END) as bot_messages,
-                   MAX(CASE WHEN m.content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR m.content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%' THEN 1 ELSE 0 END) as has_lead
+                   MAX(CASE WHEN m.content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR m.content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%' THEN 1 ELSE 0 END) as has_lead,
+                   {_ENTRY_PAGE_SELECT}
             FROM messages m
             GROUP BY m.session_id
             {having_clause}
@@ -880,15 +937,7 @@ async def get_dashboard_conversations(request: Request, limit: int = 100, offset
         "limit": limit,
         "offset": offset,
         "conversations": [
-            {
-                "session_id": row["session_id"],
-                "started_at": row["started_at"],
-                "last_message_at": row["last_message_at"],
-                "message_count": row["message_count"],
-                "user_messages": row["user_messages"],
-                "bot_messages": row["bot_messages"],
-                "has_lead": bool(row["has_lead"])
-            }
+            _conversation_payload(row)
             for row in rows
         ]
     }
@@ -916,8 +965,11 @@ async def get_dashboard_conversation_detail(request: Request, session_id: str):
     )
     conn.close()
 
+    entry_page = _extract_entry_page_from_events(event_rows)
+
     return {
         "session_id": session_id,
+        **entry_page,
         "messages": [
             {"id": row["id"], "role": row["role"], "content": row["content"], "timestamp": row["timestamp"]}
             for row in message_rows

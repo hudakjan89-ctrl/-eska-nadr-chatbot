@@ -4,7 +4,7 @@
   window.__ENIQ_WIDGET__ = 1;
 
   const BASE_URL = 'https://nadrz.eniq.eu';
-  const WIDGET_VERSION = '9.4.15';
+  const WIDGET_VERSION = '9.4.16';
   const assetV = `v=${WIDGET_VERSION}`;
   const WIDGET_CSS_URL = `${BASE_URL}/widget/style.css`;
 
@@ -211,6 +211,60 @@
     }
     localStorage.setItem("session_id", sessionId);
     return sessionId;
+  }
+
+  function getPageContext() {
+    return {
+      page_url: window.location.href,
+      page_path: window.location.pathname,
+      page_title: document.title || null,
+      referrer: document.referrer || null
+    };
+  }
+
+  function storeEntryPageContext(context) {
+    const sid = ensureSessionId();
+    try {
+      sessionStorage.setItem(`eniq_entry_page_${sid}`, JSON.stringify(context));
+    } catch (_) {}
+    return context;
+  }
+
+  function getStoredPageContext() {
+    const sid = sessionId;
+    if (sid) {
+      try {
+        const stored = sessionStorage.getItem(`eniq_entry_page_${sid}`);
+        if (stored) return JSON.parse(stored);
+      } catch (_) {}
+    }
+    return getPageContext();
+  }
+
+  function maybeEmitChatStarted(trigger) {
+    const sid = ensureSessionId();
+    const sentKey = `eniq_chat_started_${sid}`;
+    if (sessionStorage.getItem(sentKey) === "1") return;
+    sessionStorage.setItem(sentKey, "1");
+    const context = storeEntryPageContext(getPageContext());
+    emitFrontendEvent("chat_started", {
+      trigger,
+      ...context
+    });
+  }
+
+  function openChatPanel(trigger) {
+    syncWidgetAssetsFromServer();
+    markChatEngaged();
+    closeInvite();
+    maybeEmitChatStarted(trigger);
+    panel.classList.add('open');
+    sessionStorage.setItem("eniq_is_open", "true");
+    if (chatBox.children.length === 0) {
+      isFirstMessage = true;
+      quickActionsShown = false;
+      addMessage(UI_TEXT[selectedLang].welcome, "bot", true);
+    }
   }
 
   async function emitFrontendEvent(eventName, metadata = {}) {
@@ -761,7 +815,7 @@
         const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}.`;
         fetch(`${BASE_URL}/chat`, { 
           method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-          body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang }) 
+          body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang, ...getStoredPageContext() }) 
         }).catch(e => console.log('Passive track fail', e));
       }
     });
@@ -800,7 +854,7 @@
       // Odesíláme potichu do botu
       fetch(`${BASE_URL}/chat`, { 
           method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-          body: JSON.stringify({ message: hiddenMessage, session_id: sessionId, language: selectedLang }) 
+          body: JSON.stringify({ message: hiddenMessage, session_id: sessionId, language: selectedLang, ...getStoredPageContext() }) 
       });
     });
     return row;
@@ -845,20 +899,9 @@
     if (searchingEl) { searchingEl.remove(); searchingEl = null; }
   }
 
-  launcher.addEventListener("click", () => {
-    syncWidgetAssetsFromServer();
-    markChatEngaged();
-    closeInvite();
-    panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
-    if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
-  });
+  launcher.addEventListener("click", () => openChatPanel("launcher"));
 
-  document.getElementById("inviteCta").addEventListener("click", () => {
-    markChatEngaged();
-    closeInvite();
-    panel.classList.add('open'); sessionStorage.setItem("eniq_is_open", "true");
-    if (chatBox.children.length === 0) { isFirstMessage = true; quickActionsShown = false; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); }
-  });
+  document.getElementById("inviteCta").addEventListener("click", () => openChatPanel("invite_cta"));
 
   document.getElementById("inviteClose").addEventListener("click", () => closeInvite(true));
 
@@ -970,7 +1013,7 @@
     try {
       const resp = await fetch(`${BASE_URL}/chat`, { 
         method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-        body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang }),
+        body: JSON.stringify({ message: messageText, session_id: sessionId, language: selectedLang, ...getStoredPageContext() }),
         signal: controller.signal
       });
       if (!resp.ok) throw new Error(`Chat request failed: ${resp.status}`);
@@ -1057,7 +1100,8 @@
   setFontSize(fontSize);
   updateUI(); setExpanded(isExpanded); setTheme(isDark); updateSendState();
   if (isChatOpen) { 
-    panel.classList.add('open'); 
+    panel.classList.add('open');
+    maybeEmitChatStarted("restored_open");
     if (chatBox.children.length === 0) { isFirstMessage = true; addMessage(UI_TEXT[selectedLang].welcome, "bot", true); } 
   } else {
     scheduleInvite();

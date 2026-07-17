@@ -99,6 +99,18 @@ def session_has_messages(session_id: str) -> bool:
     return row is not None
 
 
+def session_has_event(session_id: str, event_name: str) -> bool:
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT 1 FROM events WHERE session_id = ? AND event_name = ? LIMIT 1",
+        (session_id, event_name),
+    )
+    row = c.fetchone()
+    conn.close()
+    return row is not None
+
+
 def load_session_messages(session_id: str, limit: int = 50) -> list:
     """Obnoví konverzáciu zo SQLite pre LLM kontext po redeployi."""
     conn = _connect()
