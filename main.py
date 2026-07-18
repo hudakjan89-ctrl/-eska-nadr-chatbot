@@ -45,7 +45,10 @@ logger = logging.getLogger("ceska_nadrz.main")
 LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.eurouter.ai/api/v1").rstrip("/")
 LLM_API_KEY = os.getenv("EUROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
 LLM_MODEL = os.getenv("OPENROUTER_MODEL") or os.getenv("LLM_MODEL", "claude-sonnet-5")
+LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "").strip()
 LLM_CHAT_URL = f"{LLM_API_BASE_URL}/chat/completions"
+LLM_RETRY_ATTEMPTS = int(os.getenv("LLM_RETRY_ATTEMPTS", "4"))
+LLM_RETRYABLE_STATUS_CODES = {429, 502, 503, 529}
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 WIDGET_VERSION = "9.4.16"
@@ -487,6 +490,66 @@ def _extract_llm_content(data: dict) -> str:
     return str(content).strip()
 
 
+def _is_transient_llm_error(exc: Exception) -> bool:
+    if isinstance(exc, (httpx.TimeoutException, httpx.TransportError)):
+        return True
+    message = str(exc).lower()
+    return (
+        "no upstream provider" in message
+        or "llm api error 429" in message
+        or "llm api error 502" in message
+        or "llm api error 503" in message
+        or "llm api error 529" in message
+        or "rate limit" in message
+        or "llm returned empty content" in message
+        or "llm returned no choices" in message
+    )
+
+
+def _llm_models_to_try() -> list[str]:
+    models = [LLM_MODEL]
+    if LLM_FALLBACK_MODEL and LLM_FALLBACK_MODEL not in models:
+        models.append(LLM_FALLBACK_MODEL)
+    return models
+
+
+async def _request_llm(messages: list, model: str, max_tokens: int, temperature: float) -> str:
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        response = await client.post(
+            LLM_CHAT_URL,
+            headers=_llm_headers(),
+            json={
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        if response.status_code != 200:
+            raise ValueError(f"LLM API Error {response.status_code}: {response.text[:500]}")
+        return _extract_llm_content(response.json())
+
+
+async def _call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.2) -> str:
+    if not LLM_API_KEY:
+        raise ValueError("API Key is missing.")
+
+    last_error = None
+    for model in _llm_models_to_try():
+        for attempt in range(LLM_RETRY_ATTEMPTS):
+            try:
+                return await _request_llm(messages, model, max_tokens, temperature)
+            except (httpx.TimeoutException, httpx.TransportError, ValueError) as exc:
+                last_error = exc
+                if isinstance(exc, ValueError) and not _is_transient_llm_error(exc):
+                    raise exc
+
+            if attempt < LLM_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(min(2 ** attempt, 8))
+
+    raise last_error or ValueError("LLM call failed")
+
+
 def _build_products_context(found_products: list) -> str:
     if not found_products:
         return "V databázi produktů nebylo nalezeno nic přesného."
@@ -518,36 +581,6 @@ def _build_knowledge_context(found_knowledge: list) -> str:
         content = chunk.get("content") or chunk.get("body") or ""
         lines.append(f"--- TÉMA: {title} ---\n{content}\n")
     return "\n".join(lines) + "\n"
-
-
-async def _call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.2) -> str:
-    if not LLM_API_KEY:
-        raise ValueError("API Key is missing.")
-
-    last_error = None
-    for attempt in range(2):
-        try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
-                response = await client.post(
-                    LLM_CHAT_URL,
-                    headers=_llm_headers(),
-                    json={
-                        "model": LLM_MODEL,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                )
-                if response.status_code != 200:
-                    raise ValueError(f"LLM API Error {response.status_code}: {response.text[:500]}")
-                return _extract_llm_content(response.json())
-        except (httpx.TimeoutException, httpx.TransportError, ValueError) as exc:
-            last_error = exc
-            if attempt == 0:
-                await asyncio.sleep(1.5)
-                continue
-            raise last_error
-    raise last_error or ValueError("LLM call failed")
 
 
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
@@ -836,8 +869,12 @@ async def chat(request: Request, chat_req: ChatRequest):
         )
             
     except Exception as e:
+        transient = _is_transient_llm_error(e)
         error_msg = f"Error v endpointe /chat. Message: {chat_req.message}. Exception: {str(e)}"
-        logger.exception(error_msg)
+        if transient:
+            logger.warning(error_msg)
+        else:
+            logger.exception(error_msg)
         fire_alert(error_msg)
         emit_event(
             event_name="chat_error",
@@ -849,10 +886,11 @@ async def chat(request: Request, chat_req: ChatRequest):
                 "error": str(e),
                 "query_text": chat_req.message,
                 "optimized_query": optimized_query,
+                "transient": transient,
             },
         )
         fallback = (
-            "Omlouváme se, odpověď se nepodařilo načíst. Zkuste dotaz prosím poslat znovu "
+            "Omlouváme se, odpověď se momentálně nepodařilo načíst. Zkuste dotaz prosím poslat znovu za chvíli "
             "nebo nás kontaktujte na obchod@ceskanadrz.cz."
         )
         sessions[session_id].append({"role": "assistant", "content": fallback})
