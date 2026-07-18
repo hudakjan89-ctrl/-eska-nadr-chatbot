@@ -63,7 +63,7 @@ def expand_search_query(query: str) -> str:
     if any(term in q for term in ("nadzemni", "nad zem", "volne stojici", "volne stoj")):
         extra.extend(["nadzemní volně stojící"])
     if "retenc" in q:
-        extra.append("retenční nádrž")
+        extra.extend(["retenční nádrž", "samonosná nádrž", "nádrž k obetonování"])
     if "destov" in q or "destovka" in q:
         extra.append("nádrž na dešťovou vodu")
 
@@ -83,7 +83,7 @@ def _product_rank_score(prod: dict, query: str) -> int:
     placement = prod.get("placement") or detect_placement(prod.get("name", ""), prod.get("url", ""))
     score = 0
 
-    wants_underground = any(term in q for term in ("podzemni", "pod zem", "do zeme", "samonos", "obetonov"))
+    wants_underground = any(term in q for term in ("podzemni", "pod zem", "do zeme", "samonos", "obetonov", "retenc"))
     wants_aboveground = any(term in q for term in ("nadzemni", "nad zem", "volne stojici"))
 
     if wants_underground:
@@ -96,6 +96,8 @@ def _product_rank_score(prod: dict, query: str) -> int:
             score += 120
         if placement == "podzemni":
             score -= 80
+    if "retenc" in q and not wants_aboveground and placement == "nadzemni":
+        score -= 200
 
     if any(term in q for term in ("nadrz", "retenc", "destov", "destovka", "vodu")):
         if _is_tank_product(prod):

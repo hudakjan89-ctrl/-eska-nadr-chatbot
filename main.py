@@ -475,6 +475,81 @@ def _llm_headers() -> dict:
     }
 
 
+def _extract_llm_content(data: dict) -> str:
+    choices = data.get("choices") or []
+    if not choices:
+        raise ValueError("LLM returned no choices")
+
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    if content is None:
+        raise ValueError("LLM returned empty content")
+    return str(content).strip()
+
+
+def _build_products_context(found_products: list) -> str:
+    if not found_products:
+        return "V databázi produktů nebylo nalezeno nic přesného."
+
+    lines = ["NALEZENÉ PRODUKTY V E-SHOPU:"]
+    for product in found_products:
+        placement = product.get("placement", "")
+        placement_label = {
+            "podzemni": "podzemní (samonosná/k obetonování)",
+            "nadzemni": "nadzemní",
+        }.get(placement, "")
+        placement_suffix = f" | Umístění: {placement_label}" if placement_label else ""
+        lines.append(
+            f"- Název: {product.get('name', 'Neznámý produkt')} | "
+            f"Cena: {product.get('price', '—')} | "
+            f"Odkaz: {product.get('url', '—')} | "
+            f"Kategorie: {product.get('category', '—')}{placement_suffix}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _build_knowledge_context(found_knowledge: list) -> str:
+    if not found_knowledge:
+        return "FIREMNÍ DATABÁZE A FAQ:\n"
+
+    lines = ["FIREMNÍ DATABÁZE A FAQ:"]
+    for chunk in found_knowledge:
+        title = chunk.get("title") or chunk.get("name") or "FAQ"
+        content = chunk.get("content") or chunk.get("body") or ""
+        lines.append(f"--- TÉMA: {title} ---\n{content}\n")
+    return "\n".join(lines) + "\n"
+
+
+async def _call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.2) -> str:
+    if not LLM_API_KEY:
+        raise ValueError("API Key is missing.")
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                response = await client.post(
+                    LLM_CHAT_URL,
+                    headers=_llm_headers(),
+                    json={
+                        "model": LLM_MODEL,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                )
+                if response.status_code != 200:
+                    raise ValueError(f"LLM API Error {response.status_code}: {response.text[:500]}")
+                return _extract_llm_content(response.json())
+        except (httpx.TimeoutException, httpx.TransportError, ValueError) as exc:
+            last_error = exc
+            if attempt == 0:
+                await asyncio.sleep(1.5)
+                continue
+            raise last_error
+    raise last_error or ValueError("LLM call failed")
+
+
 async def generate_optimized_search_query(chat_history: list, new_message: str) -> str:
     if len(chat_history) < 2: return new_message
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]])
@@ -499,8 +574,9 @@ PRAVIDLA:
                 headers=_llm_headers(),
                 json={"model": LLM_MODEL, "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 40}
             )
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip().replace('"', '')
+            if response.status_code != 200:
+                return new_message
+            return _extract_llm_content(response.json()).replace('"', '')
     except Exception:
         return new_message
 
@@ -525,7 +601,7 @@ def enrich_search_query(optimized_query: str, chat_history: list, new_message: s
 
 
 @app.post("/chat", response_model=ChatResponse)
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def chat(request: Request, chat_req: ChatRequest):
     x_nadrz_token = request.headers.get("x-nadrz-token")
     if x_nadrz_token != "nadrz-secure-2026":
@@ -602,23 +678,11 @@ async def chat(request: Request, chat_req: ChatRequest):
     found_products = []
     if optimized_query != "NONE":
         search_query = enrich_search_query(optimized_query, sessions[session_id], chat_req.message)
-        found_products = search_products(search_query, top_k=8)
-        products_context = "NALEZENÉ PRODUKTY V E-SHOPU:\n"
-        for p in found_products:
-            placement = p.get("placement", "")
-            placement_label = {
-                "podzemni": "podzemní (samonosná/k obetonování)",
-                "nadzemni": "nadzemní",
-            }.get(placement, "")
-            placement_suffix = f" | Umístění: {placement_label}" if placement_label else ""
-            products_context += f"- Název: {p['name']} | Cena: {p['price']} | Odkaz: {p['url']} | Kategorie: {p['category']}{placement_suffix}\n"
-        if not found_products:
-            products_context = "V databázi produktů nebylo nalezeno nic přesného."
-            
-    found_knowledge = search_knowledge(optimized_query, top_k=6)
-    knowledge_context = "FIREMNÍ DATABÁZE A FAQ:\n"
-    for k in found_knowledge:
-        knowledge_context += f"--- TÉMA: {k['title']} ---\n{k['content']}\n\n"
+        found_products = await asyncio.to_thread(search_products, search_query, 8)
+        products_context = _build_products_context(found_products)
+
+    found_knowledge = await asyncio.to_thread(search_knowledge, optimized_query, 6)
+    knowledge_context = _build_knowledge_context(found_knowledge)
 
     lang_instruction = "MUSÍŠ odpovídat striktně ČESKY."
     if chat_req.language == "sk": lang_instruction = "MUSÍŠ odpovedať striktne SLOVENSKY!"
@@ -680,115 +744,117 @@ async def chat(request: Request, chat_req: ChatRequest):
     messages = [{"role": "system", "content": system_prompt}] + sessions[session_id][-10:]
     
     try:
-        if not LLM_API_KEY: raise Exception("API Key is missing.")
+        assistant_message = await _call_llm(messages)
 
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                LLM_CHAT_URL,
-                headers=_llm_headers(),
-                json={"model": LLM_MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 400}
-            )
-            
-            if response.status_code != 200:
-                raise Exception(f"LLM API Error {response.status_code}: {response.text}")
-            
-            data = response.json()
-            assistant_message = data["choices"][0]["message"]["content"]
-            
-            # Post-processing: vyčisti zbytky tagů, nadměrné newlines a markdown artefakty
-            assistant_message = re.sub(r'\n{3,}', '\n\n', assistant_message)
-            assistant_message = re.sub(r'^#{2,6}\s+', '', assistant_message, flags=re.MULTILINE)
-            assistant_message = re.sub(r'\n\s*---+\s*\n', '\n\n', assistant_message)
-            assistant_message = assistant_message.strip()
-            
-            detected_url = detect_page_section(chat_req.message) 
-            detected_image = None
-            hidden_url, assistant_message = extract_hidden_url_tag(assistant_message)
-            
-            if hidden_url:
-                log_event("product_recommendation")
-                detected_url = hidden_url
-                corrected_from_url = None
-                mentioned_product = resolve_mentioned_product(found_products, assistant_message, detected_url)
-                if mentioned_product and mentioned_product.get("url") != detected_url:
-                    corrected_from_url = detected_url
-                    detected_url = mentioned_product.get("url")
-                
-                if detected_url not in recommended_urls[session_id]:
-                    recommended_urls[session_id].append(detected_url)
-                
-                detected_product = mentioned_product or find_product_by_url(found_products, detected_url)
-                if detected_product:
-                    detected_image = detected_product.get('image_url')
-                emit_event(
-                    event_name="product_recommended",
-                    session_id=session_id,
-                    message_id=bot_message_id,
-                    user_id_hash=user_id_hash,
-                    language=chat_req.language,
-                    metadata={
-                        "url": detected_url,
-                        "image_url": detected_image,
-                        "corrected_from_url": corrected_from_url,
-                        "optimized_query": optimized_query
-                    }
-                )
+        # Post-processing: vyčisti zbytky tagů, nadměrné newlines a markdown artefakty
+        assistant_message = re.sub(r'\n{3,}', '\n\n', assistant_message)
+        assistant_message = re.sub(r'^#{2,6}\s+', '', assistant_message, flags=re.MULTILINE)
+        assistant_message = re.sub(r'\n\s*---+\s*\n', '\n\n', assistant_message)
+        assistant_message = assistant_message.strip()
 
-            show_form = False
-            msg_lower = assistant_message.lower()
-            if "[SHOW_CONTACT_FORM]" in assistant_message or "zanechte mi" in msg_lower or "formulář" in msg_lower:
-                show_form = True
-                assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
-                emit_event(
-                    event_name="contact_form_shown",
-                    session_id=session_id,
-                    message_id=bot_message_id,
-                    user_id_hash=user_id_hash,
-                    language=chat_req.language,
-                    metadata={"trigger": "assistant_response"}
-                )
-            
-            # Odstraň osamělé tagy, které nejsou určené k zobrazení zákazníkovi.
-            assistant_message = re.sub(r'\[(?!\s*SHOW_CONTACT_FORM\s*\])[^\]]*\]', '', assistant_message, flags=re.IGNORECASE).strip()
-            
-            # Necháme hvězdičky pro markdown formátování zpráv:
-            # assistant_message = assistant_message.replace("**", "")
+        detected_url = detect_page_section(chat_req.message)
+        detected_image = None
+        hidden_url, assistant_message = extract_hidden_url_tag(assistant_message)
 
-            sessions[session_id].append({"role": "assistant", "content": assistant_message})
-            conversation_message_count = len(sessions[session_id])
-            if conversation_message_count <= 2:
-                length_bucket = "short"
-            elif conversation_message_count <= 6:
-                length_bucket = "medium"
-            else:
-                length_bucket = "long"
-            
-            log_message(session_id, "bot", assistant_message)
+        if hidden_url:
+            log_event("product_recommendation")
+            detected_url = hidden_url
+            corrected_from_url = None
+            mentioned_product = resolve_mentioned_product(found_products, assistant_message, detected_url)
+            if mentioned_product and mentioned_product.get("url") != detected_url:
+                corrected_from_url = detected_url
+                detected_url = mentioned_product.get("url")
+
+            if detected_url not in recommended_urls[session_id]:
+                recommended_urls[session_id].append(detected_url)
+
+            detected_product = mentioned_product or find_product_by_url(found_products, detected_url)
+            if detected_product:
+                detected_image = detected_product.get('image_url')
             emit_event(
-                event_name="message_bot",
+                event_name="product_recommended",
                 session_id=session_id,
                 message_id=bot_message_id,
                 user_id_hash=user_id_hash,
                 language=chat_req.language,
                 metadata={
-                    "length": len(assistant_message),
-                    "has_product_url": bool(detected_url),
-                    "show_contact_form": show_form,
-                    "conversation_message_count": conversation_message_count,
-                    "conversation_length_bucket": length_bucket
+                    "url": detected_url,
+                    "image_url": detected_image,
+                    "corrected_from_url": corrected_from_url,
+                    "optimized_query": optimized_query
                 }
             )
-            
-            return ChatResponse(
-                response=assistant_message, 
-                session_id=session_id, 
-                page_section=detected_url,
-                image_url=detected_image,  
-                show_contact_form=show_form
+
+        show_form = False
+        msg_lower = assistant_message.lower()
+        if "[SHOW_CONTACT_FORM]" in assistant_message or "zanechte mi" in msg_lower or "formulář" in msg_lower:
+            show_form = True
+            assistant_message = assistant_message.replace("[SHOW_CONTACT_FORM]", "").strip()
+            emit_event(
+                event_name="contact_form_shown",
+                session_id=session_id,
+                message_id=bot_message_id,
+                user_id_hash=user_id_hash,
+                language=chat_req.language,
+                metadata={"trigger": "assistant_response"}
             )
+
+        # Odstraň osamělé tagy, které nejsou určené k zobrazení zákazníkovi.
+        assistant_message = re.sub(r'\[(?!\s*SHOW_CONTACT_FORM\s*\])[^\]]*\]', '', assistant_message, flags=re.IGNORECASE).strip()
+
+        sessions[session_id].append({"role": "assistant", "content": assistant_message})
+        conversation_message_count = len(sessions[session_id])
+        if conversation_message_count <= 2:
+            length_bucket = "short"
+        elif conversation_message_count <= 6:
+            length_bucket = "medium"
+        else:
+            length_bucket = "long"
+
+        log_message(session_id, "bot", assistant_message)
+        emit_event(
+            event_name="message_bot",
+            session_id=session_id,
+            message_id=bot_message_id,
+            user_id_hash=user_id_hash,
+            language=chat_req.language,
+            metadata={
+                "length": len(assistant_message),
+                "has_product_url": bool(detected_url),
+                "show_contact_form": show_form,
+                "conversation_message_count": conversation_message_count,
+                "conversation_length_bucket": length_bucket
+            }
+        )
+
+        return ChatResponse(
+            response=assistant_message,
+            session_id=session_id,
+            page_section=detected_url,
+            image_url=detected_image,
+            show_contact_form=show_form
+        )
             
     except Exception as e:
         error_msg = f"Error v endpointe /chat. Message: {chat_req.message}. Exception: {str(e)}"
         logger.exception(error_msg)
         fire_alert(error_msg)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        emit_event(
+            event_name="chat_error",
+            session_id=session_id,
+            message_id=bot_message_id,
+            user_id_hash=user_id_hash,
+            language=chat_req.language,
+            metadata={
+                "error": str(e),
+                "query_text": chat_req.message,
+                "optimized_query": optimized_query,
+            },
+        )
+        fallback = (
+            "Omlouváme se, odpověď se nepodařilo načíst. Zkuste dotaz prosím poslat znovu "
+            "nebo nás kontaktujte na obchod@ceskanadrz.cz."
+        )
+        sessions[session_id].append({"role": "assistant", "content": fallback})
+        log_message(session_id, "bot", fallback)
+        return ChatResponse(response=fallback, session_id=session_id)
