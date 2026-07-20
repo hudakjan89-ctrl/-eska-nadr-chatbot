@@ -44,7 +44,7 @@ logger = logging.getLogger("ceska_nadrz.main")
 
 LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.eurouter.ai/api/v1").rstrip("/")
 LLM_API_KEY = os.getenv("EUROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
-LLM_MODEL = os.getenv("OPENROUTER_MODEL") or os.getenv("LLM_MODEL", "claude-sonnet-5")
+LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENROUTER_MODEL", "claude-opus-4-7")
 LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "").strip()
 LLM_CHAT_URL = f"{LLM_API_BASE_URL}/chat/completions"
 LLM_RETRY_ATTEMPTS = int(os.getenv("LLM_RETRY_ATTEMPTS", "4"))
