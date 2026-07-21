@@ -1,5 +1,7 @@
 import os
 import re
+import time
+import threading
 import unicodedata
 import uuid
 import logging
@@ -20,11 +22,43 @@ if not _qdrant_path:
 os.makedirs(_qdrant_path, exist_ok=True)
 logger.info("Qdrant path: %s", _qdrant_path)
 
-client = QdrantClient(path=_qdrant_path)
+_client: QdrantClient | None = None
+_client_lock = threading.Lock()
+
+def get_qdrant_client() -> QdrantClient:
+    """Lazy singleton — Qdrant local path nepodporuje viac procesov naraz."""
+    global _client
+    if _client is not None:
+        return _client
+    with _client_lock:
+        if _client is not None:
+            return _client
+        last_error = None
+        for attempt in range(8):
+            try:
+                _client = QdrantClient(path=_qdrant_path)
+                return _client
+            except RuntimeError as exc:
+                last_error = exc
+                if "already accessed" in str(exc).lower() and attempt < 7:
+                    wait = min(2 ** attempt, 30)
+                    logger.warning(
+                        "Qdrant DB je zamknutá (pokus %d/8), čakám %ds — typicky pri redeployi.",
+                        attempt + 1,
+                        wait,
+                    )
+                    time.sleep(wait)
+                    continue
+                raise
+        if last_error:
+            raise last_error
+        raise RuntimeError("Nepodarilo sa inicializovať Qdrant klienta.")
+
 COLLECTION_PRODUCTS = "ceskanadrz_products"
 COLLECTION_KNOWLEDGE = "ceskanadrz_knowledge"
 
 _product_cache: list[dict] = []
+_knowledge_section_count = 0
 
 PLACEMENT_SYNONYMS = {
     "podzemni": "podzemní do země pod zemí samonosná k obetonování dvouplášťová zakopaná",
@@ -299,7 +333,7 @@ def _lexical_search_products(query: str, limit: int = 30) -> list[dict]:
 
 def collection_exists(coll_name):
     try:
-        collections_response = client.get_collections()
+        collections_response = get_qdrant_client().get_collections()
         for collection in collections_response.collections:
             if collection.name == coll_name:
                 return True
@@ -310,11 +344,11 @@ def collection_exists(coll_name):
 def init_db():
     if not collection_exists(COLLECTION_PRODUCTS):
         logger.info(f"Vytváram databázu: {COLLECTION_PRODUCTS}")
-        client.create_collection(collection_name=COLLECTION_PRODUCTS, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
+        get_qdrant_client().create_collection(collection_name=COLLECTION_PRODUCTS, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
     
     if not collection_exists(COLLECTION_KNOWLEDGE):
         logger.info(f"Vytváram databázu: {COLLECTION_KNOWLEDGE}")
-        client.create_collection(collection_name=COLLECTION_KNOWLEDGE, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
+        get_qdrant_client().create_collection(collection_name=COLLECTION_KNOWLEDGE, vectors_config=VectorParams(size=384, distance=Distance.COSINE))
 
 def _merge_product_results(*lists: list[dict]) -> list[dict]:
     merged = []
@@ -351,7 +385,7 @@ def upsert_products(products):
             payload=prod,
         ))
     if points:
-        client.upsert(collection_name=COLLECTION_PRODUCTS, points=points)
+        get_qdrant_client().upsert(collection_name=COLLECTION_PRODUCTS, points=points)
         logger.info(f"Úspešne aktualizovaných {len(points)} produktov v databáze.")
 
 def search_products(query: str, top_k=10):
@@ -365,7 +399,7 @@ def search_products(query: str, top_k=10):
         fetch_k = max(fetch_k, 60)
 
     query_vector = model.encode(expanded_query, show_progress_bar=False).tolist()
-    hits = client.search(collection_name=COLLECTION_PRODUCTS, query_vector=query_vector, limit=fetch_k)
+    hits = get_qdrant_client().search(collection_name=COLLECTION_PRODUCTS, query_vector=query_vector, limit=fetch_k)
     embedding_products = [hit.payload for hit in hits]
     embedding_ranks = {
         (hit.payload.get("url") or hit.payload.get("id")): idx
@@ -390,6 +424,7 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
 
 
 def upsert_knowledge_content(content: str):
+    global _knowledge_section_count
     sections = content.split('\n### ')
     points = []
     items = []
@@ -400,26 +435,29 @@ def upsert_knowledge_content(content: str):
 
         if title and body:
             items.append({"title": title, "body": body})
-            
+
     if not items:
+        logger.warning("Knowledge content neobsahuje žiadne platné sekcie (očakávaný formát: ### Nadpis).")
+        _knowledge_section_count = 0
         return 0
 
     texts = [f"Téma: {item['title']}\nInformace: {item['body']}" for item in items]
     logger.info(f"Generujem embeddingy pre {len(items)} informačných blokov...")
     vectors = model.encode(texts, batch_size=32, show_progress_bar=False).tolist()
-    
+
     for item, vector in zip(items, vectors):
         chunk_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, item['title']))
-        
+
         points.append(PointStruct(
             id=chunk_id,
             vector=vector,
             payload={"title": item['title'], "content": item['body']}
         ))
     if points:
-        client.upsert(collection_name=COLLECTION_KNOWLEDGE, points=points)
+        get_qdrant_client().upsert(collection_name=COLLECTION_KNOWLEDGE, points=points)
         logger.info(f"Úspešne rozsekaných a uložených {len(points)} informačných blokov z manuálu.")
 
+    _knowledge_section_count = len(points)
     return len(points)
 
 def search_knowledge(query: str, top_k=3):
@@ -427,11 +465,17 @@ def search_knowledge(query: str, top_k=3):
         return []
     expanded_query = expand_search_query(query)
     query_vector = model.encode(expanded_query, show_progress_bar=False).tolist()
-    hits = client.search(collection_name=COLLECTION_KNOWLEDGE, query_vector=query_vector, limit=top_k)
+    hits = get_qdrant_client().search(collection_name=COLLECTION_KNOWLEDGE, query_vector=query_vector, limit=top_k)
     return [hit.payload for hit in hits]
 
 def product_count() -> int:
     return len(_product_cache)
+
+def knowledge_section_count() -> int:
+    return _knowledge_section_count
+
+def is_knowledge_index_ready() -> bool:
+    return _knowledge_section_count > 0 or collection_exists(COLLECTION_KNOWLEDGE)
 
 def is_product_index_ready() -> bool:
     return product_count() > 0 or collection_exists(COLLECTION_PRODUCTS)

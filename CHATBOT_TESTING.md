@@ -56,7 +56,27 @@ Po nasadení merge `4a79110` + prompt fixov overiť:
 3. `Potřebuji podzemní` + `10m3` → ponúkne modely bez ďalšieho vyptávania
 4. Health `GET /` → `products_indexed` ≈ 1020
 
-## Poznámka k deploy
+## Riešenie problémov zo štartu
 
-Search fix (hybrid retrieval) bol zmergovaný do `main` až po tomto teste.  
-Produkčný redeploy musí ťahať commit `4a79110` alebo novší.
+### `Knowledge base pripravena (0 sekcii)`
+
+Príčina: súbor `/data/knowledge_base.md` existuje, ale je prázdny alebo nemá formát `### Nadpis`.
+
+Riešenie (od commit fix-qdrant-knowledge-startup):
+- Pri štarte sa automaticky stiahne z GitHubu ak cache nie je platná
+- Health endpoint ukáže `knowledge_sections` a `knowledge_index_ready`
+
+Manuálne:
+```bash
+curl -X POST https://nadrz.eniq.eu/admin/reindex-knowledge \
+  -H "x-dashboard-api-key: VÁŠ_KĽÚČ"
+```
+
+### `Qdrant DB is already accessed by another instance`
+
+Príčina: dva procesy/kontajnery pristupujú k `/data/qdrant_db` naraz (typicky pri redeployi).
+
+Riešenie:
+- Uvicorn beží s `--workers 1`
+- Qdrant klient sa inicializuje lazy s retry (až 8 pokusov)
+- Pri deployi počkajte kým starý kontajner skončí pred spustením nového

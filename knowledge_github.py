@@ -12,6 +12,8 @@ KNOWLEDGE_LOCAL_PATH = os.getenv(
     os.path.join(_default_data_dir, KNOWLEDGE_FILE_NAME) if _default_data_dir else KNOWLEDGE_FILE_NAME,
 )
 
+MIN_KNOWLEDGE_BYTES = 200
+
 
 def _github_settings() -> dict:
     return {
@@ -49,6 +51,21 @@ def _github_auth_headers(token: str) -> list[dict]:
             "Accept": "application/vnd.github.v3+json",
         },
     ]
+
+
+def knowledge_cache_path() -> str:
+    return KNOWLEDGE_LOCAL_PATH
+
+
+def knowledge_cache_size() -> int:
+    try:
+        return os.path.getsize(KNOWLEDGE_LOCAL_PATH) if os.path.exists(KNOWLEDGE_LOCAL_PATH) else 0
+    except OSError:
+        return 0
+
+
+def knowledge_cache_usable() -> bool:
+    return knowledge_cache_size() >= MIN_KNOWLEDGE_BYTES
 
 
 def fetch_knowledge_from_github() -> dict:
@@ -100,6 +117,7 @@ def fetch_knowledge_from_github() -> dict:
         raise RuntimeError("GitHub response did not include file content.")
 
     content = base64.b64decode(encoded).decode("utf-8")
+    os.makedirs(os.path.dirname(KNOWLEDGE_LOCAL_PATH) or ".", exist_ok=True)
     with open(KNOWLEDGE_LOCAL_PATH, "w", encoding="utf-8") as handle:
         handle.write(content)
 
@@ -128,37 +146,53 @@ def sync_knowledge_base(fetch_remote: bool = True) -> int:
 
     if fetch_remote and is_github_configured():
         fetch_knowledge_from_github()
-    elif not os.path.exists(KNOWLEDGE_LOCAL_PATH):
+    elif not knowledge_cache_usable():
         logger.warning(
-            "GitHub nie je nakonfigurovaný a lokálny %s neexistuje — knowledge base sa nenačíta.",
+            "GitHub nie je nakonfigurovaný a lokálny %s neexistuje alebo je prázdny — knowledge base sa nenačíta.",
             KNOWLEDGE_LOCAL_PATH,
         )
         return 0
 
-    return load_and_upsert_knowledge(KNOWLEDGE_LOCAL_PATH)
+    sections = load_and_upsert_knowledge(KNOWLEDGE_LOCAL_PATH)
+    if sections == 0:
+        logger.error(
+            "Knowledge súbor %s (%d B) sa nepodarilo rozparsovať na sekcie.",
+            KNOWLEDGE_LOCAL_PATH,
+            knowledge_cache_size(),
+        )
+    return sections
 
 
 def load_knowledge_on_startup() -> int:
-    """Pri štarte len z cache. GitHub sa ťahá až po webhooku z portálu (alebo prvý boot)."""
+    """Načíta knowledge z cache; ak je prázdna/neplatná, stiahne z GitHubu."""
     from database import load_and_upsert_knowledge
 
-    if os.path.exists(KNOWLEDGE_LOCAL_PATH):
-        logger.info("Načítavam knowledge base z lokálnej cache (bez GitHub dotazu).")
-        return load_and_upsert_knowledge(KNOWLEDGE_LOCAL_PATH)
+    if knowledge_cache_usable():
+        logger.info(
+            "Načítavam knowledge base z lokálnej cache: %s (%d B)",
+            KNOWLEDGE_LOCAL_PATH,
+            knowledge_cache_size(),
+        )
+        sections = load_and_upsert_knowledge(KNOWLEDGE_LOCAL_PATH)
+        if sections > 0:
+            return sections
+        logger.warning(
+            "Lokálna knowledge cache existuje, ale neobsahuje platné sekcie (formát ### Nadpis)."
+        )
 
     if is_github_configured():
-        logger.info("Lokálna cache chýba — prvotné stiahnutie z GitHubu.")
+        logger.info("Knowledge cache chýba alebo je neplatná — sťahujem z GitHubu.")
         try:
             return sync_knowledge_base(fetch_remote=True)
         except RuntimeError as exc:
             logger.error(
-                "%s Bot štartuje bez knowledge base — oprav GITHUB_TOKEN alebo "
-                "počkaj na webhook z portálu.",
+                "%s Bot štartuje bez knowledge base — skontroluj GITHUB_TOKEN a repozitár.",
                 exc,
             )
             return 0
 
     logger.warning(
-        "Knowledge base nie je dostupná — čaká sa na prvý sync z portálu."
+        "Knowledge base nie je dostupná — nastavte GITHUB_TOKEN alebo nahrajte %s na volume.",
+        KNOWLEDGE_LOCAL_PATH,
     )
     return 0

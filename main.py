@@ -27,7 +27,7 @@ from slowapi.errors import RateLimitExceeded
 from xml_parser import fetch_and_parse_xml
 from database import (
     upsert_products, search_products, search_knowledge, expand_search_query,
-    is_product_index_ready, product_count,
+    is_product_index_ready, product_count, knowledge_section_count, is_knowledge_index_ready,
 )
 from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint, sync_knowledge_base
 from admin import router as admin_router, refresh_dashboard_cache
@@ -449,7 +449,7 @@ async def startup_event():
         )
     if is_github_configured():
         logger.info(
-            "Knowledge base: GitHub %s/%s@%s (aktualizácia len cez portál webhook)",
+            "Knowledge base: GitHub %s/%s@%s (sync pri štarte ak cache prázdna + každých 6h)",
             os.getenv("GITHUB_OWNER", "hudakjan89-ctrl"),
             os.getenv("GITHUB_REPO", "ceskanadrz-knowledge"),
             os.getenv("GITHUB_BRANCH", "main"),
@@ -463,6 +463,16 @@ async def startup_event():
     logger.info("Aplikacia startuje. Nacitavam knowledge base...")
     sections = load_knowledge_on_startup()
     logger.info("Knowledge base pripravena (%d sekcii).", sections)
+    if sections == 0 and is_github_configured():
+        logger.warning("Knowledge base je prázdna — spúšťam núdzový sync z GitHubu...")
+        await sync_knowledge_task()
+        sections = knowledge_section_count()
+        logger.info("Knowledge base po núdzovom sync: %d sekcii.", sections)
+    if sections == 0:
+        logger.error(
+            "KRITICKÉ: Knowledge base má 0 sekcií — bot odpovedá len z produktového feedu. "
+            "Skontrolujte GITHUB_TOKEN a súbor knowledge_base.md v repozitári."
+        )
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.add_job(sync_knowledge_task, 'interval', hours=6)
@@ -486,6 +496,8 @@ async def health_check():
         "widget_version": WIDGET_VERSION,
         "products_indexed": product_count(),
         "product_index_ready": is_product_index_ready(),
+        "knowledge_sections": knowledge_section_count(),
+        "knowledge_index_ready": is_knowledge_index_ready(),
     }
 
 def _llm_headers() -> dict:
