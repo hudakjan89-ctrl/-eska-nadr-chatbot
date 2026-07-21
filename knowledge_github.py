@@ -6,7 +6,11 @@ import httpx
 logger = logging.getLogger("ceska_nadrz.knowledge_github")
 
 KNOWLEDGE_FILE_NAME = "knowledge_base.md"
-KNOWLEDGE_LOCAL_PATH = os.getenv("KNOWLEDGE_LOCAL_PATH", KNOWLEDGE_FILE_NAME)
+_default_data_dir = os.getenv("DATA_DIR", "").strip()
+KNOWLEDGE_LOCAL_PATH = os.getenv(
+    "KNOWLEDGE_LOCAL_PATH",
+    os.path.join(_default_data_dir, KNOWLEDGE_FILE_NAME) if _default_data_dir else KNOWLEDGE_FILE_NAME,
+)
 
 
 def _github_settings() -> dict:

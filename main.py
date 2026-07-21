@@ -25,8 +25,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from xml_parser import fetch_and_parse_xml
-from database import upsert_products, search_products, search_knowledge, expand_search_query
-from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint
+from database import (
+    upsert_products, search_products, search_knowledge, expand_search_query,
+    is_product_index_ready, product_count,
+)
+from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint, sync_knowledge_base
 from admin import router as admin_router, refresh_dashboard_cache
 from logger import (
     log_message, log_event, emit_event, build_user_hash,
@@ -374,6 +377,7 @@ async def update_database_task():
         if products:
             logger.info(f"Nacitanych {len(products)} produktov, ukladám do DB (v samostatnom vlákne)...")
             await asyncio.to_thread(upsert_products, products)
+            logger.info("Produktový index pripravený (%d položiek).", product_count())
         else:
             logger.warning("Ziadne produkty stiahnute z XML (prazdny zoznam).")
 
@@ -381,6 +385,15 @@ async def update_database_task():
     except Exception as e:
         logger.exception("Kriticka chyba v opakovanej ulohe update_database_task!")
         fire_alert(f"Zlyhal update_database_task feed!\nChyba: {str(e)}")
+
+
+async def sync_knowledge_task():
+    try:
+        sections = await asyncio.to_thread(sync_knowledge_base, is_github_configured())
+        logger.info("Knowledge sync dokončený (%d sekcí).", sections)
+    except Exception as e:
+        logger.exception("Knowledge sync zlyhal: %s", e)
+        fire_alert(f"Zlyhal sync knowledge base!\nChyba: {str(e)}")
 
 
 async def purge_cloudflare_widget_cache():
@@ -452,12 +465,16 @@ async def startup_event():
     logger.info("Knowledge base pripravena (%d sekcii).", sections)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(update_database_task, 'interval', hours=6)
+    scheduler.add_job(sync_knowledge_task, 'interval', hours=6)
     scheduler.add_job(refresh_dashboard_cache, 'interval', hours=2)
     scheduler.start()
     logger.info("Naplanovana uloha update_database_task - produkty z XML (kazdych 6 hodin).")
+    logger.info("Naplanovana uloha sync_knowledge_task (kazdych 6 hodin).")
     logger.info("Naplanovana uloha refresh_dashboard_cache (kazde 2 hodiny).")
     refresh_dashboard_cache()
-    asyncio.create_task(update_database_task())
+    await update_database_task()
+    if not is_product_index_ready():
+        logger.error("Produktový index nie je pripravený po štarte — chat môže vracať nepresné odpovede.")
     asyncio.create_task(purge_cloudflare_widget_cache())
     logger.info("Widget verzia: %s", WIDGET_VERSION)
 
@@ -467,6 +484,8 @@ async def health_check():
         "status": "Česká nádrž RAG Bot is running",
         "version": WIDGET_VERSION,
         "widget_version": WIDGET_VERSION,
+        "products_indexed": product_count(),
+        "product_index_ready": is_product_index_ready(),
     }
 
 def _llm_headers() -> dict:
@@ -530,7 +549,7 @@ async def _request_llm(messages: list, model: str, max_tokens: int, temperature:
         return _extract_llm_content(response.json())
 
 
-async def _call_llm(messages: list, max_tokens: int = 400, temperature: float = 0.2) -> str:
+async def _call_llm(messages: list, max_tokens: int = 600, temperature: float = 0.2) -> str:
     if not LLM_API_KEY:
         raise ValueError("API Key is missing.")
 
@@ -550,6 +569,13 @@ async def _call_llm(messages: list, max_tokens: int = 400, temperature: float = 
     raise last_error or ValueError("LLM call failed")
 
 
+CONSTRUCTION_LABELS = {
+    "samonosna": "samonosná",
+    "obetonovani": "k obetonování",
+    "dvouplastova": "dvouplášťová",
+    "nadzemni": "nadzemní",
+}
+
 def _build_products_context(found_products: list) -> str:
     if not found_products:
         return "V databázi produktů nebylo nalezeno nic přesného."
@@ -557,16 +583,23 @@ def _build_products_context(found_products: list) -> str:
     lines = ["NALEZENÉ PRODUKTY V E-SHOPU:"]
     for product in found_products:
         placement = product.get("placement", "")
+        construction = product.get("construction_type", "")
         placement_label = {
-            "podzemni": "podzemní (samonosná/k obetonování)",
+            "podzemni": "podzemní",
             "nadzemni": "nadzemní",
         }.get(placement, "")
-        placement_suffix = f" | Umístění: {placement_label}" if placement_label else ""
+        construction_label = CONSTRUCTION_LABELS.get(construction, "")
+        meta_parts = []
+        if placement_label:
+            meta_parts.append(f"Umístění: {placement_label}")
+        if construction_label:
+            meta_parts.append(f"Provedení: {construction_label}")
+        meta_suffix = f" | {' | '.join(meta_parts)}" if meta_parts else ""
         lines.append(
             f"- Název: {product.get('name', 'Neznámý produkt')} | "
             f"Cena: {product.get('price', '—')} | "
             f"Odkaz: {product.get('url', '—')} | "
-            f"Kategorie: {product.get('category', '—')}{placement_suffix}"
+            f"Kategorie: {product.get('category', '—')}{meta_suffix}"
         )
     return "\n".join(lines) + "\n"
 
@@ -601,15 +634,12 @@ PRAVIDLA:
 - Nikdy nevracej jen jedno slovo typu „podzemní“, „nadzemní“ nebo samotný objem „5 m3“.
 - Pokud jde o pozdrav nebo věc mimo e-shop, napiš NONE."""
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                LLM_CHAT_URL,
-                headers=_llm_headers(),
-                json={"model": LLM_MODEL, "messages":[{"role": "user", "content": prompt}], "temperature": 0.0, "max_tokens": 40}
-            )
-            if response.status_code != 200:
-                return new_message
-            return _extract_llm_content(response.json()).replace('"', '')
+        result = await _call_llm(
+            [{"role": "user", "content": prompt}],
+            max_tokens=40,
+            temperature=0.0,
+        )
+        return result.replace('"', '').strip()
     except Exception:
         return new_message
 
@@ -714,7 +744,11 @@ async def chat(request: Request, chat_req: ChatRequest):
         found_products = await asyncio.to_thread(search_products, search_query, 8)
         products_context = _build_products_context(found_products)
 
-    found_knowledge = await asyncio.to_thread(search_knowledge, optimized_query, 6)
+    if optimized_query != "NONE":
+        knowledge_query = enrich_search_query(optimized_query, sessions[session_id], chat_req.message)
+    else:
+        knowledge_query = expand_search_query(chat_req.message)
+    found_knowledge = await asyncio.to_thread(search_knowledge, knowledge_query, 6)
     knowledge_context = _build_knowledge_context(found_knowledge)
 
     lang_instruction = "MUSÍŠ odpovídat striktně ČESKY."
@@ -742,7 +776,7 @@ async def chat(request: Request, chat_req: ChatRequest):
         "1) STRUČNOST A RELEVANCE: Odpovídej stručně a k věci. Dlouhé odpovědi piš jen tehdy, když si o to zákazník výslovně řekne. Nepřidávej irelevantní kontext ani 'pro úplnost' další informace, na které se neptal.\n\n"
         "2) LEGISLATIVA A NORMY — PŘÍSNÝ ZÁKAZ SPONTÁNNÍCH RAD: Neodpovídej na legislativní, vodoprávní ani normativní otázky (ČSN, NV 401/2015, povolení, vypouštění, vsakování vs. vodoteče, kolaudace atd.), POKUD se zákazník výslovně NEZEPTÁ. Když se ptá na velikost, typ nebo doporučení produktu, nepřidávej věty o tom, 'kam se smí vypouštět' ani 'co vyžaduje úřad'. Pokud zákazník legislativu výslovně zmíní, řekni obecně, že podmínky určuje místní vodoprávní úřad a doporuč ověření u něj — nevymýšlej si paragrafy ani konkrétní limity.\n\n"
         "3) KONZISTENCE S VLASTNÍMI PŘEDCHOZÍMI ODPOVĚDMI: Pokud jsi v této konverzaci již doporučil konkrétní produkt nebo typ řešení, v dalších zprávách tento fakt neodvolávej. Nikdy neříkej 'nemáme nádrže na vodu', pokud jsi o kus výš nějakou nádrž doporučil. Když si nejsi jistý, odkaž zákazníka na svou předchozí odpověď místo popření.\n\n"
-        "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná), orientační objem, případně zatížení (zelená plocha / pojezd / spodní voda). Pokud zákazník řekne podzemní, okamžitě nabídni samonosnou nebo k obetonování nádrž ze sekce NALEZENÉ PRODUKTY — neptej se znovu na nadzemní vs. podzemní.\n\n"
+        "4) RYCHLÁ A ODBORNÁ ANALÝZA POŽADAVKU: Nevyptávej se zbytečně dlouho. Zjisti jen to nejnutnější: účel (dešťovka / splašky / pitná / požární-retenční), orientační objem, případně zatížení (zelená plocha / pojezd / spodní voda). Pokud zákazník řekne podzemní, okamžitě nabídni relevantní varianty ze sekce NALEZENÉ PRODUKTY — neptej se znovu na nadzemní vs. podzemní.\n\n"
         "5) ZÁKAZ VYMÝŠLENÍ: Čerpej VÝHRADNĚ ze sekcí 'NALEZENÉ PRODUKTY' a 'FIREMNÍ DATABÁZE'. Pokud tam informace není, řekni, že ji nemáš, a nabídni kontakt na obchod@ceskanadrz.cz. Nevymýšlej si parametry, ceny ani vlastnosti, které nejsou v datech.\n\n"
         "6) ATYPICKÉ POŽADAVKY: Pokud zákazník chce něco, co v produktech není (atypický objem, speciální provedení), odkaž ho na výrobu na míru podle dodaných rozměrů: 'Napište svůj přesný požadavek, rozměry a účel na obchod@ceskanadrz.cz a kolegové posoudí vhodné řešení.' Nikdy netvrď, že nádrž vyrobíme nebo svaříme přímo na místě u zákazníka.\n\n"
         "7) ODKAZ NA PRODUKT: Když doporučíš konkrétní produkt z e-shopu, VŽDY přidej na úplný konec zprávy skrytý tag přesně ve formátu [URL: https://www.ceskanadrz.cz/konkretni-produkt/]. Tag musí mít hranaté závorky, nesmí být v markdown odkazu a nesmí být volně v textu.\n\n"
@@ -757,14 +791,18 @@ async def chat(request: Request, chat_req: ChatRequest):
         "- Když se zákazník ptá, s kým to může probrat, odpověz kontaktem na obchodní oddělení: obchod@ceskanadrz.cz a telefon 737 234 461. Nepiš, že se mu ozveme, pokud ještě nezanechal e-mail nebo telefon.\n\n"
         "- Když se zákazník ptá na objednávku, objednání v chatu, dokončení objednávky nebo chce poradit s objednáním konkrétního produktu, řekni stručně, že objednávku v chatu přímo nevytvoří, ale může zanechat kontakt; zavoláme mu a objednávku společně uděláme telefonicky. Na konec zprávy vždy přidej tag [SHOW_CONTACT_FORM].\n\n"
         "TECHNICKÁ FAKTA (často chybovaná):\n"
-        "- Podzemní nádrže jsou náš hlavní sortiment. V katalogu se označují jako SAMONOSNÉ nebo K OBETONOVÁNÍ. Když zákazník řekne podzemní, hledej tyto produkty v NALEZENÉ PRODUKTY. Nikdy neříkej, že podzemní nádrže nemáme.\n"
+        "- Podzemní nádrže jsou náš hlavní sortiment (cca 99 % prodejů). Vyrábíme je ve 3 variantách: SAMONOSNÁ, K OBETONOVÁNÍ a DVOUPLÁŠŤOVÁ. Když zákazník řekne podzemní a v NALEZENÝCH PRODUKTECH jsou varianty, vždy uveď všechny relevantní (ne jen 2 ze 3). Nikdy neříkej, že podzemní nádrže nemáme.\n"
+        "- Varianta K OBETONOVÁNÍ není vhodná do míst s vysokou spodní vodou — tam doporuč DVOUPLÁŠŤOVOU variantu. Samonosná zvládá standardní podmínky bez betonu.\n"
+        "- Pojem 'retenční nádrž' zákazníci často myslí jako nádrž na dešťovou vodu nebo požární/retenční nádrž. Samostatná 10 m³ retenční SKU v katalogu nemusí existovat — nejbližší jsou nádrže na dešťovou vodu 10 m³ nebo požární nádrže 20 m³ (2×10 m³). Nikdy netvrď, že 10 m³ nádrže vůbec nemáme.\n"
+        "- Pokud zákazník napíše objem bez '3' (např. '10m' nebo 'deset kubíků'), chápej to jako m³.\n"
         "- Samonosné septiky NEVYŽADUJÍ obetonování — zvládají standardní podmínky v zemi bez betonu.\n"
         "- U septiků zákazníkům standardně doporučuj tříkomorové septiky. Nenabízej šesti-komorové ani zbytečně větší septiky, pokud si zákazník výslovně neřekne o velkou kapacitu nebo z dat jasně nevyplývá trvalé vysoké zatížení. U chat a víkendového provozu zohledni, že nejde o plné celoroční obsazení, a preferuj menší vhodné řešení.\n"
         "- K septikům spontánně nepřidávej zemní pískový filtr, vypouštění, povolení ani jiné legislativní doplňky, pokud se zákazník výslovně neptá na legislativu nebo vypouštění.\n"
         "- U vodoměrných šachet nenabízej konkrétní velikost, model ani cenu podle vlastního odhadu. Doporuč jen konstrukční typ podle podmínek (např. samonosná / k obetonování) a u velikosti vždy odkaž na požadavky místní vodárenské společnosti nebo správce vodovodu. Konkrétní produkt a URL dávej až tehdy, když zákazník uvede požadovaný rozměr nebo typ podle vodáren.\n"
         "- Výroba nebo svařování plastové nádrže přímo na místě u zákazníka může být obecně technicky možné, ale Česká nádrž tuto službu neposkytuje. Pokud se zákazník ptá na nádrž do sklepa nebo svaření na místě, řekni, že to neděláme, a nabídni posouzení zákazkového řešení podle rozměrů přístupové cesty, sklepa, požadovaného objemu a účelu.\n"
         "- Při orientačním výpočtu velikosti jímky používej 100 litrů odpadní vody na osobu a den, ne 150 litrů. Vždy připomeň, že skutečná velikost závisí i na frekvenci vývozu a reálné spotřebě domácnosti.\n"
-        "- U dešťové vody a čerpání nedoporučuj čerpadla s plovákem. Preferuj automaty a ideálně hotové sety. Pokud zákazník řeší využití vody z nádrže, doporučuj spíše kompletní vhodný set než samostatně filtr a samostatné čerpadlo.\n"
+        "- Kalová čerpadla s vestavěným plovákem (do jímek/septiků) máme v sortimentu — pokud jsou v NALEZENÝCH PRODUKTECH, doporuč je. U čerpání dešťové vody z nádrže ale preferuj automatické čerpadlo nebo hotový set, ne plovákové řešení.\n"
+        "- Hlásiče naplnění jímky/nádrže/septiku máme v sortimentu — pokud jsou v NALEZENÝCH PRODUKTECH, popiš je podle dostupných parametrů v popisu produktu.\n"
         "- Plastové nádrže do 5 m³ lze usadit ručně, nevyžadují bagr ani speciální techniku.\n"
         "- Nikdy zákazníkovi neříkej, že 'od 5 m³ potřebuje speciální techniku' — není to pravda.\n"
         "- Nenabízej dělení objemu na více nádrží, pokud zákazník explicitně nechce objem nad 20 m³ a sám se na to nezeptá.\n\n"

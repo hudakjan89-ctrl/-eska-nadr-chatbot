@@ -2,10 +2,16 @@ import httpx
 import xml.etree.ElementTree as ET
 import uuid
 import re
+import unicodedata
 import logging
 from alerter import fire_alert
 
 logger = logging.getLogger("ceska_nadrz.xml_parser")
+
+def _normalize_text(text: str) -> str:
+    text = unicodedata.normalize('NFD', text or '')
+    text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
+    return text.lower()
 
 def get_product_id(url: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, url))
@@ -17,11 +23,25 @@ def clean_html(raw_html: str) -> str:
     cleantext = re.sub(cleanr, ' ', raw_html)
     return " ".join(cleantext.split())
 
-def detect_placement(name: str, url: str = "") -> str:
-    combined = f"{(name or '').lower()} {(url or '').lower()}"
+def detect_construction_type(name: str, url: str = "") -> str:
+    combined = _normalize_text(f"{name} {url}")
+    if "dvouplast" in combined:
+        return "dvouplastova"
+    if "samonos" in combined:
+        return "samonosna"
+    if "obetonov" in combined:
+        return "obetonovani"
     if "nadzem" in combined:
         return "nadzemni"
-    if "samonos" in combined or "obetonov" in combined:
+    return "neznamo"
+
+def detect_placement(name: str, url: str = "") -> str:
+    combined = _normalize_text(f"{name} {url}")
+    if "nadzem" in combined:
+        return "nadzemni"
+    if any(term in combined for term in ("samonos", "obetonov", "dvouplast", "dvouplastov")):
+        return "podzemni"
+    if any(term in combined for term in ("nadrz", "jimk", "septik", "cistick", "cistirn", "sacht")):
         return "podzemni"
     return "neznamo"
 
@@ -50,7 +70,6 @@ async def fetch_and_parse_xml():
             price = item.find('PRICE_VAT')
             cat = item.find('CATEGORYTEXT')
             
-            # --- ZACHYTENIE OBRÁZKU ---
             img = item.find('IMGURL')
             img_url = img.text.strip() if img is not None and img.text else ""
             
@@ -63,16 +82,19 @@ async def fetch_and_parse_xml():
                 price_val = price.text.strip() if price is not None and price.text else ""
                 if price_val and "Kč" not in price_val and "CZK" not in price_val:
                     price_val += " Kč"
-                    
+
+                product_name = name.text.strip()
+                product_url = link.text.strip()
                 products.append({
-                    'id': get_product_id(link.text.strip()),
-                    'name': name.text.strip(),
-                    'url': link.text.strip(),
-                    'image_url': img_url,  # <--- ULOŽENIE OBRÁZKU DO DATABÁZY
+                    'id': get_product_id(product_url),
+                    'name': product_name,
+                    'url': product_url,
+                    'image_url': img_url,
                     'description': desc_text,
                     'price': price_val,
                     'category': cat.text.strip() if cat is not None and cat.text else '',
-                    'placement': detect_placement(name.text.strip(), link.text.strip()),
+                    'placement': detect_placement(product_name, product_url),
+                    'construction_type': detect_construction_type(product_name, product_url),
                 })
                 
         logger.info(f"Úspěšně staženo a připraveno {len(products)} produktů (včetně obrázků).")

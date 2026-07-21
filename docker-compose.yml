@@ -7,6 +7,7 @@ services:
       - .env
     environment:
       DATA_DIR: /data
+      KNOWLEDGE_LOCAL_PATH: /data/knowledge_base.md
     volumes:
       # Trvalý disk na hoste — história chatov pre Eniq portál prežije redeploy
       - /var/lib/ceskanadrz-chatbot/data:/data

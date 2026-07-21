@@ -11,6 +11,8 @@ from typing import Optional, List, Union
 from logger import emit_event
 from logger import log_message
 from knowledge_github import KNOWLEDGE_LOCAL_PATH, is_github_configured, sync_knowledge_base
+from xml_parser import fetch_and_parse_xml
+from database import upsert_products, product_count
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -835,6 +837,27 @@ async def get_dashboard_snapshot(request: Request, refresh: bool = False):
 async def refresh_dashboard_snapshot(request: Request):
     _require_dashboard_api_key(request)
     return refresh_dashboard_cache()
+
+
+@router.post("/reindex-products")
+async def reindex_products(request: Request):
+    """Stiahne XML feed a reindexuje produkty do Qdrantu."""
+    _require_dashboard_api_key(request)
+    try:
+        products = await fetch_and_parse_xml()
+        if not products:
+            raise HTTPException(status_code=502, detail="XML feed returned no products.")
+        upsert_products(products)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Product reindex failed: {exc}") from exc
+
+    return {
+        "status": "success",
+        "products_indexed": product_count(),
+        "source": "xml_feed",
+    }
 
 
 @router.post("/reindex-knowledge")
