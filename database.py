@@ -425,22 +425,15 @@ def load_and_upsert_knowledge(filepath="knowledge_base.md"):
 
 def upsert_knowledge_content(content: str):
     global _knowledge_section_count
-    sections = content.split('\n### ')
-    points = []
-    items = []
-    for section in sections[1:]:
-        lines = section.split('\n')
-        title = lines[0].strip()
-        body = '\n'.join(lines[1:]).strip()
-
-        if title and body:
-            items.append({"title": title, "body": body})
+    init_db()
+    items = _parse_knowledge_sections(content)
 
     if not items:
-        logger.warning("Knowledge content neobsahuje žiadne platné sekcie (očakávaný formát: ### Nadpis).")
+        logger.warning("Knowledge content neobsahuje žiadne platné sekcie (očakávaný formát: ### Nadpis alebo ## Nadpis).")
         _knowledge_section_count = 0
         return 0
 
+    points = []
     texts = [f"Téma: {item['title']}\nInformace: {item['body']}" for item in items]
     logger.info(f"Generujem embeddingy pre {len(items)} informačných blokov...")
     vectors = model.encode(texts, batch_size=32, show_progress_bar=False).tolist()
@@ -460,6 +453,42 @@ def upsert_knowledge_content(content: str):
     _knowledge_section_count = len(points)
     return len(points)
 
+
+def _parse_knowledge_sections(content: str) -> list[dict]:
+    content = (content or "").strip()
+    if not content:
+        return []
+
+    for level in ("###", "##"):
+        pattern = re.compile(rf'^{re.escape(level)}\s+(.+)$', re.MULTILINE)
+        matches = list(pattern.finditer(content))
+        if not matches:
+            continue
+        items = []
+        for index, match in enumerate(matches):
+            title = match.group(1).strip()
+            start = match.end()
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
+            body = content[start:end].strip()
+            if title and body:
+                items.append({"title": title, "body": body})
+        if items:
+            return items
+    return []
+
+
+def refresh_knowledge_section_count() -> int:
+    global _knowledge_section_count
+    if not collection_exists(COLLECTION_KNOWLEDGE):
+        _knowledge_section_count = 0
+        return 0
+    try:
+        info = get_qdrant_client().get_collection(COLLECTION_KNOWLEDGE)
+        _knowledge_section_count = int(getattr(info, "points_count", 0) or 0)
+    except Exception:
+        pass
+    return _knowledge_section_count
+
 def search_knowledge(query: str, top_k=3):
     if not collection_exists(COLLECTION_KNOWLEDGE):
         return []
@@ -475,7 +504,9 @@ def knowledge_section_count() -> int:
     return _knowledge_section_count
 
 def is_knowledge_index_ready() -> bool:
-    return _knowledge_section_count > 0 or collection_exists(COLLECTION_KNOWLEDGE)
+    if _knowledge_section_count > 0:
+        return True
+    return refresh_knowledge_section_count() > 0
 
 def is_product_index_ready() -> bool:
-    return product_count() > 0 or collection_exists(COLLECTION_PRODUCTS)
+    return product_count() > 0

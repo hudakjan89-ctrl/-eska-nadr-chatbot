@@ -11,6 +11,7 @@ KNOWLEDGE_LOCAL_PATH = os.getenv(
     "KNOWLEDGE_LOCAL_PATH",
     os.path.join(_default_data_dir, KNOWLEDGE_FILE_NAME) if _default_data_dir else KNOWLEDGE_FILE_NAME,
 )
+KNOWLEDGE_SEED_PATH = os.getenv("KNOWLEDGE_SEED_PATH", "knowledge_seed.md")
 
 MIN_KNOWLEDGE_BYTES = 200
 
@@ -163,9 +164,19 @@ def sync_knowledge_base(fetch_remote: bool = True) -> int:
     return sections
 
 
-def load_knowledge_on_startup() -> int:
-    """Načíta knowledge z cache; ak je prázdna/neplatná, stiahne z GitHubu."""
+def load_seed_knowledge() -> int:
     from database import load_and_upsert_knowledge
+
+    if not os.path.exists(KNOWLEDGE_SEED_PATH):
+        logger.warning("Seed knowledge súbor neexistuje: %s", KNOWLEDGE_SEED_PATH)
+        return 0
+    logger.info("Načítavam záložnú knowledge base zo seed súboru: %s", KNOWLEDGE_SEED_PATH)
+    return load_and_upsert_knowledge(KNOWLEDGE_SEED_PATH)
+
+
+def load_knowledge_on_startup() -> int:
+    """Načíta knowledge z cache; ak je prázdna/neplatná, stiahne z GitHubu; inak seed."""
+    from database import load_and_upsert_knowledge, refresh_knowledge_section_count
 
     if knowledge_cache_usable():
         logger.info(
@@ -183,16 +194,24 @@ def load_knowledge_on_startup() -> int:
     if is_github_configured():
         logger.info("Knowledge cache chýba alebo je neplatná — sťahujem z GitHubu.")
         try:
-            return sync_knowledge_base(fetch_remote=True)
+            sections = sync_knowledge_base(fetch_remote=True)
+            if sections > 0:
+                return sections
         except RuntimeError as exc:
-            logger.error(
-                "%s Bot štartuje bez knowledge base — skontroluj GITHUB_TOKEN a repozitár.",
-                exc,
-            )
-            return 0
+            logger.error("GitHub knowledge sync zlyhal: %s", exc)
 
-    logger.warning(
-        "Knowledge base nie je dostupná — nastavte GITHUB_TOKEN alebo nahrajte %s na volume.",
+    sections = load_seed_knowledge()
+    if sections > 0:
+        return sections
+
+    qdrant_sections = refresh_knowledge_section_count()
+    if qdrant_sections > 0:
+        logger.info("Knowledge base načítaná z existujúceho Qdrant indexu (%d sekcií).", qdrant_sections)
+        return qdrant_sections
+
+    logger.error(
+        "Knowledge base nie je dostupná — skontrolujte GITHUB_TOKEN, %s alebo seed %s.",
         KNOWLEDGE_LOCAL_PATH,
+        KNOWLEDGE_SEED_PATH,
     )
     return 0

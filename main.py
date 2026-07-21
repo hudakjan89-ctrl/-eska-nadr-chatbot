@@ -28,6 +28,7 @@ from xml_parser import fetch_and_parse_xml
 from database import (
     upsert_products, search_products, search_knowledge, expand_search_query,
     is_product_index_ready, product_count, knowledge_section_count, is_knowledge_index_ready,
+    refresh_knowledge_section_count,
 )
 from knowledge_github import load_knowledge_on_startup, is_github_configured, github_token_hint, sync_knowledge_base
 from admin import router as admin_router, refresh_dashboard_cache
@@ -490,6 +491,7 @@ async def startup_event():
 
 @app.get("/")
 async def health_check():
+    refresh_knowledge_section_count()
     return {
         "status": "Česká nádrž RAG Bot is running",
         "version": WIDGET_VERSION,
