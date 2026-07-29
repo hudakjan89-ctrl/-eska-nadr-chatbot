@@ -12,6 +12,7 @@ logger = logging.getLogger("ceska_nadrz.mailer")
 
 DEFAULT_TARGET_EMAILS = [
     "obchod@ceskanadrz.cz",
+    "info@ceskanadrz.cz",
     "janhudak748@gmail.com",
 ]
 
