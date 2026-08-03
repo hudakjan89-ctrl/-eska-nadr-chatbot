@@ -20,8 +20,19 @@ DEFAULT_TARGET_EMAILS = [
 def _target_emails() -> list:
     targets_raw = os.getenv("LEAD_TARGET_EMAILS", "").strip()
     if targets_raw:
-        return [e.strip() for e in targets_raw.split(",") if e.strip()]
-    return list(DEFAULT_TARGET_EMAILS)
+        raw = [e.strip() for e in targets_raw.split(",") if e.strip()]
+    else:
+        raw = list(DEFAULT_TARGET_EMAILS)
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for email in raw:
+        key = email.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(email)
+    return deduped
 
 
 def _from_email() -> str:

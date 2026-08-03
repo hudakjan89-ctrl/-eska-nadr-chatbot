@@ -787,6 +787,8 @@
     const phoneInput = row.querySelector('.cf-phone');
     const noteInput = row.querySelector('.cf-note');
     let passiveSent = false;
+    let passiveTimer = null;
+    const PASSIVE_LEAD_DELAY_MS = 60000;
     let formInteractionLogged = false;
 
     const logFormInteraction = (fieldName) => {
@@ -807,18 +809,32 @@
       });
     });
     
-    emailInput.addEventListener('blur', () => {
+    const cancelPassiveLead = () => {
+      if (passiveTimer) {
+        clearTimeout(passiveTimer);
+        passiveTimer = null;
+      }
+    };
+
+    const schedulePassiveLead = () => {
+      cancelPassiveLead();
       const email = emailInput.value.trim();
       const fname = fnameInput.value.trim() || 'Nezadáno';
-      if (!passiveSent && email.includes('@') && email.includes('.')) {
+      if (passiveSent || !email.includes('@') || !email.includes('.')) return;
+
+      passiveTimer = setTimeout(() => {
+        passiveTimer = null;
+        if (passiveSent) return;
         passiveSent = true;
         const msg = `[PASIVNÍ ZÁCHYT KONTAKTU] E-mail: ${email}, Jméno: ${fname}.`;
-        fetch(`${BASE_URL}/chat`, { 
-          method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-          body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang, ...getStoredPageContext() }) 
+        fetch(`${BASE_URL}/chat`, {
+          method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" },
+          body: JSON.stringify({ message: msg, session_id: sessionId, language: selectedLang, ...getStoredPageContext() })
         }).catch(e => console.log('Passive track fail', e));
-      }
-    });
+      }, PASSIVE_LEAD_DELAY_MS);
+    };
+
+    emailInput.addEventListener('blur', schedulePassiveLead);
 
     const submitBtn = row.querySelector('.cf-submit-btn');
     submitBtn.addEventListener('click', () => {
@@ -828,6 +844,9 @@
       const note = row.querySelector('.cf-note').value.trim();
 
       if (!email) { alert(UI_TEXT[selectedLang].cfErr); return; }
+
+      cancelPassiveLead();
+      passiveSent = true;
 
       let successText = UI_TEXT[selectedLang].cfSuccess.replace("{NAME}", fname || "");
       row.innerHTML = `<div class="cf-success" style="white-space: pre-wrap;">${successText}</div>`;

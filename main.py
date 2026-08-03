@@ -46,6 +46,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ceska_nadrz.main")
 
+# session_id -> "passive" | "full" — prevents duplicate lead emails per session
+_lead_email_sent: dict[str, str] = {}
+
 LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.eurouter.ai/api/v1").rstrip("/")
 LLM_API_KEY = os.getenv("EUROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENROUTER_MODEL", "claude-opus-4-7")
@@ -728,7 +731,26 @@ async def chat(request: Request, chat_req: ChatRequest):
     # Detekce leadu (odeslaný aktivně nebo pasivně zachycený)
     if is_contact_capture:
         history = list(sessions[session_id]) + [{"role": "user", "content": chat_req.message}]
-        await send_lead_email(chat_req.message, history)
+        is_full_form = "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message
+        is_passive = "[PASIVNÍ ZÁCHYT KONTAKTU]" in chat_req.message
+        prior_lead = _lead_email_sent.get(session_id)
+
+        should_send_email = False
+        if is_full_form:
+            # Full form always sends (may update a prior passive capture with phone/note).
+            should_send_email = prior_lead != "full"
+        elif is_passive:
+            # Passive only when the user has not already submitted the full form.
+            should_send_email = prior_lead is None
+
+        if should_send_email:
+            await send_lead_email(chat_req.message, history)
+            _lead_email_sent[session_id] = "full" if is_full_form else "passive"
+        elif is_passive:
+            logger.info("Pasivní záchyt leadu přeskočen — pro session %s už byl odeslán lead.", session_id)
+        elif is_full_form:
+            logger.info("Duplicitní odeslání formuláře přeskočeno pro session %s.", session_id)
+
         if "[KONTAKTNÍ FORMULÁŘ]" in chat_req.message:
             emit_event(
                 event_name="contact_submitted",
