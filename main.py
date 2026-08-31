@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -37,7 +37,7 @@ from logger import (
     DB_PATH, session_has_messages, session_has_event, load_session_messages, load_recommended_urls,
 )
 from alerter import fire_alert
-from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured
+from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured, _target_emails
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -237,13 +237,22 @@ def ensure_session_loaded(session_id: str) -> None:
         recommended_urls[session_id] = load_recommended_urls(session_id)
 
 class ChatRequest(BaseModel):
-    message: str = Field(..., max_length=500)
+    message: str = Field(..., max_length=2000)
     session_id: Optional[str] = None
     language: Optional[str] = "cs"
     page_url: Optional[str] = None
     page_path: Optional[str] = None
     page_title: Optional[str] = None
     referrer: Optional[str] = None
+
+    @field_validator("message")
+    @classmethod
+    def validate_message_length(cls, value: str) -> str:
+        is_contact_capture = "[KONTAKTNÍ FORMULÁŘ]" in value or "[PASIVNÍ ZÁCHYT KONTAKTU]" in value
+        max_len = 2000 if is_contact_capture else 500
+        if len(value) > max_len:
+            raise ValueError(f"message too long (max {max_len} characters)")
+        return value
 
 class ChatResponse(BaseModel):
     response: str
@@ -440,16 +449,27 @@ async def startup_event():
     logger.info("LLM provider: %s | model: %s", LLM_API_BASE_URL, LLM_MODEL)
     if not LLM_API_KEY:
         logger.warning("EUROUTER_API_KEY / OPENROUTER_API_KEY nie je nastavený — chat nebude fungovať.")
+    targets = _target_emails()
     if resend_configured():
-        logger.info("Lead notifikácie: Resend API (HTTPS) — odporúčané pre Docker hosting.")
+        logger.info(
+            "Lead notifikácie: Resend API (HTTPS) → %s",
+            ", ".join(targets),
+        )
     elif smtp_configured():
-        logger.info("Lead notifikácie: SMTP (môže byť zablokované z kontajnera).")
-    elif discord_configured():
-        logger.info("Lead notifikácie: Discord webhook (záloha bez emailu).")
+        logger.info(
+            "Lead notifikácie: SMTP → %s (môže byť zablokované z kontajnera).",
+            ", ".join(targets),
+        )
     else:
         logger.warning(
-            "Lead notifikácie nie sú nakonfigurované — nastavte RESEND_API_KEY "
-            "alebo DISCORD_WEBHOOK_URL (SMTP z Dockeru často nefunguje)."
+            "Lead e-maily NIE SÚ nakonfigurované — nastavte RESEND_API_KEY alebo SMTP. "
+            "Cieľové adresy: %s. Discord webhook doručí len internú notifikáciu, nie e-mail klientovi.",
+            ", ".join(targets) if targets else "(prázdne)",
+        )
+    if discord_configured() and not (resend_configured() or smtp_configured()):
+        logger.warning(
+            "DISCORD_WEBHOOK_URL je nastavený, ale bez Resend/SMTP sa leady na %s neodosielajú.",
+            ", ".join(targets) if targets else "klientov",
         )
     if is_github_configured():
         logger.info(
@@ -744,8 +764,23 @@ async def chat(request: Request, chat_req: ChatRequest):
             should_send_email = prior_lead is None
 
         if should_send_email:
-            await send_lead_email(chat_req.message, history)
-            _lead_email_sent[session_id] = "full" if is_full_form else "passive"
+            if not (resend_configured() or smtp_configured()):
+                fire_alert(
+                    "Lead zachytený, ale e-mail nie je nakonfigurovaný (chýba RESEND_API_KEY/SMTP). "
+                    f"Session: {session_id}. Kontakt: {chat_req.message[:240]}",
+                    force=True,
+                )
+            else:
+                email_sent = await send_lead_email(chat_req.message, history)
+                if email_sent:
+                    _lead_email_sent[session_id] = "full" if is_full_form else "passive"
+                else:
+                    fire_alert(
+                        "Lead e-mail sa nepodarilo odoslať na "
+                        f"{', '.join(_target_emails())}. Session: {session_id}. "
+                        f"Kontakt: {chat_req.message[:240]}",
+                        force=True,
+                    )
         elif is_passive:
             logger.info("Pasivní záchyt leadu přeskočen — pro session %s už byl odeslán lead.", session_id)
         elif is_full_form:

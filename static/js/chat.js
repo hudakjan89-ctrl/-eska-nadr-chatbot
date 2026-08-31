@@ -312,10 +312,10 @@
   }
 
   const UI_TEXT = {
-    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", redirecting: "Přesměrovávám...", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:", inviteText: "Dobrý den! Potřebujete poradit s výběrem nádrže, jímky nebo septiku? Rád pomohu.", inviteCta: "Začít konverzaci", inviteOnline: "Online" },
-    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", redirecting: "Presmerovávam...", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", inviteText: "Dobrý deň! Potrebujete poradiť s výberom nádrže, žumpy alebo septiku? Rád pomôžem.", inviteCta: "Začať konverzáciu", inviteOnline: "Online" },
-    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", redirecting: "Redirecting...", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", inviteText: "Hello! Need help choosing a tank, cesspool or septic system? I'm here to help.", inviteCta: "Start conversation", inviteOnline: "Online" },
-    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", redirecting: "Перенаправлення...", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", inviteText: "Доброго дня! Потрібна порада щодо резервуара, вигрібної ями чи септика? Допоможу.", inviteCta: "Почати розмову", inviteOnline: "Онлайн" }
+    cs: { placeholder: "Napište zprávu…", welcome: "Dobrý den! Jsem asistent e-shopu Česká nádrž. S čím vám mohu pomoci?", searching: "Odepisuji...", expandLabel: "Rozšířit chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našel jsem vhodný odkaz. Chcete se na něj podívat?", btnYes: "Ano, přejít", btnNo: "Ne, díky", redirecting: "Přesměrovávám...", cfFname: "Jméno a Příjmení", cfEmail: "E-mail", cfPhone: "Telefonní číslo", cfNote: "Poznámka", cfBtn: "Odeslat poptávku", cfSuccess: "Děkujeme, {NAME}😊 Vaši zprávu jsme přijali – ozve se vám náš specialista s konkrétním řešením. Mezitím mi klidně napište podrobnosti – můžeme to rovnou doladit.", cfErr: "Vyplňte prosím e-mail.", cfSubmitFail: "Odeslání se nepodařilo. Zkuste to prosím znovu, nebo nás kontaktujte na obchod@ceskanadrz.cz.", ctaBtn: "Zanechat kontakt", ctaHeader: "Zanechte nám svůj kontakt:", inviteText: "Dobrý den! Potřebujete poradit s výběrem nádrže, jímky nebo septiku? Rád pomohu.", inviteCta: "Začít konverzaci", inviteOnline: "Online" },
+    sk: { placeholder: "Napíšte správu…", welcome: "Dobrý deň! Som asistent e-shopu Česká nádrž. S čím vám môžem pomôcť?", searching: "Odpisujem...", expandLabel: "Rozšíriť chat", themeLabel: "Tmavý režim", langLabel: "Jazyk", showOnPage: "Našiel som vhodný odkaz. Chcete si ho pozrieť?", btnYes: "Áno, prejsť", btnNo: "Nie, vďaka", redirecting: "Presmerovávam...", cfFname: "Meno a Priezvisko", cfEmail: "E-mail", cfPhone: "Telefónne číslo", cfNote: "Poznámka", cfBtn: "Odoslať dopyt", cfSuccess: "Ďakujeme, {NAME}😊 Vašu správu sme prijali – ozve sa vám náš špecialista s konkrétnym riešením. Medzitým mi pokojne napíšte podrobnosti – môžeme to rovno doladiť.", cfErr: "Vyplňte prosím e-mail.", cfSubmitFail: "Odoslanie sa nepodarilo. Skúste to znova, alebo nás kontaktujte na obchod@ceskanadrz.cz.", ctaBtn: "Zanechať kontakt", ctaHeader: "Zanechajte nám svoj kontakt:", inviteText: "Dobrý deň! Potrebujete poradiť s výberom nádrže, žumpy alebo septiku? Rád pomôžem.", inviteCta: "Začať konverzáciu", inviteOnline: "Online" },
+    en: { placeholder: "Type a message…", welcome: "Hello! I'm the Česká nádrž assistant. How can I help you?", searching: "Typing...", expandLabel: "Expand chat", themeLabel: "Dark mode", langLabel: "Language", showOnPage: "I found a relevant link. Would you like to see it?", btnYes: "Yes, open", btnNo: "No, thanks", redirecting: "Redirecting...", cfFname: "Full Name", cfEmail: "E-mail", cfPhone: "Phone number", cfNote: "Note", cfBtn: "Send request", cfSuccess: "Thank you, {NAME}😊 We have received your message – our specialist will contact you with a solution. In the meantime, feel free to write me the details – we can fine-tune it.", cfErr: "Please fill out your email.", cfSubmitFail: "Submission failed. Please try again or contact us at obchod@ceskanadrz.cz.", ctaBtn: "Leave contact", ctaHeader: "Leave us your contact details:", inviteText: "Hello! Need help choosing a tank, cesspool or septic system? I'm here to help.", inviteCta: "Start conversation", inviteOnline: "Online" },
+    uk: { placeholder: "Напишіть повідомлення…", welcome: "Добрий день! Я асистент інтернет-магазину Česká nádrž. Чим можу допомогти?", searching: "Відповідаю...", expandLabel: "Розгорнути чат", themeLabel: "Темний режим", langLabel: "Мова", showOnPage: "Я знайшов відповідне посилання. Бажаєте подивитися?", btnYes: "Так, перейти", btnNo: "Ні, дякую", redirecting: "Перенаправлення...", cfFname: "Повне ім'я", cfEmail: "E-mail", cfPhone: "Номер телефону", cfNote: "Примітка", cfBtn: "Надіслати запит", cfSuccess: "Дякуємо, {NAME}😊 Ми отримали ваше повідомлення – наш спеціаліст зв'яжеться з вами. Тим часом, ви можете написати мені деталі – ми можемо все узгодити.", cfErr: "Будь ласка, введіть e-mail.", cfSubmitFail: "Не вдалося надіслати. Спробуйте ще раз або зв'яжіться з нами: obchod@ceskanadrz.cz.", ctaBtn: "Залишити контакт", ctaHeader: "Залиште нам свої контактні дані:", inviteText: "Доброго дня! Потрібна порада щодо резервуара, вигрібної ями чи септика? Допоможу.", inviteCta: "Почати розмову", inviteOnline: "Онлайн" }
   };
 
   const EXTRA_TEXT = {
@@ -837,7 +837,7 @@
     emailInput.addEventListener('blur', schedulePassiveLead);
 
     const submitBtn = row.querySelector('.cf-submit-btn');
-    submitBtn.addEventListener('click', () => {
+    submitBtn.addEventListener('click', async () => {
       const fname = row.querySelector('.cf-fname').value.trim();
       const email = row.querySelector('.cf-email').value.trim();
       const phone = row.querySelector('.cf-phone').value.trim();
@@ -846,35 +846,51 @@
       if (!email) { alert(UI_TEXT[selectedLang].cfErr); return; }
 
       cancelPassiveLead();
-      passiveSent = true;
+      submitBtn.disabled = true;
 
-      let successText = UI_TEXT[selectedLang].cfSuccess.replace("{NAME}", fname || "");
-      row.innerHTML = `<div class="cf-success" style="white-space: pre-wrap;">${successText}</div>`;
-      
       const safeFname = fname || "Nevyplněno";
       const safePhone = phone || "Nevyplněno";
       const safeNote = note || "Žádná poznámka";
       const hiddenMessage = `[KONTAKTNÍ FORMULÁŘ] E-mail: ${email}, Jméno: ${safeFname}, Telefon: ${safePhone}, Poznámka: ${safeNote}.`;
-      
-      addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
-      ingestClientMessage(
-        "user",
-        `[Odeslán kontakt | E-mail: ${email}]`,
-        {
-          channel: "contact_form",
-          has_name: fname.length > 0,
-          has_email: email.length > 0,
-          has_phone: phone.length > 0,
-          has_note: note.length > 0
-        },
-        "contact_submitted"
-      );
-      
-      // Odesíláme potichu do botu
-      fetch(`${BASE_URL}/chat`, { 
-          method: "POST", headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" }, 
-          body: JSON.stringify({ message: hiddenMessage, session_id: sessionId, language: selectedLang, ...getStoredPageContext() }) 
-      });
+
+      try {
+        const response = await fetch(`${BASE_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Nadrz-Token": "nadrz-secure-2026" },
+          body: JSON.stringify({
+            message: hiddenMessage,
+            session_id: sessionId,
+            language: selectedLang,
+            ...getStoredPageContext()
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        passiveSent = true;
+        const successText = UI_TEXT[selectedLang].cfSuccess.replace("{NAME}", fname || "");
+        row.innerHTML = `<div class="cf-success" style="white-space: pre-wrap;">${successText}</div>`;
+
+        addMessage(`[Odeslán kontakt | E-mail: ${email}]`, "user", false);
+        ingestClientMessage(
+          "user",
+          `[Odeslán kontakt | E-mail: ${email}]`,
+          {
+            channel: "contact_form",
+            has_name: fname.length > 0,
+            has_email: email.length > 0,
+            has_phone: phone.length > 0,
+            has_note: note.length > 0
+          },
+          "contact_submitted"
+        );
+      } catch (error) {
+        passiveSent = false;
+        submitBtn.disabled = false;
+        console.error("Lead submit failed", error);
+        alert(UI_TEXT[selectedLang].cfSubmitFail || UI_TEXT.cs.cfSubmitFail);
+      }
     });
     return row;
   }

@@ -233,12 +233,23 @@ async def _send_smtp_email(subject: str, body: str, to_addresses: list) -> bool:
     return False
 
 
-async def send_lead_email(lead_data: str, chat_history: list) -> bool:
+async def send_lead_email(
+    lead_data: str,
+    chat_history: list,
+    *,
+    subject_prefix: str = "",
+) -> bool:
     """
-    Odošle lead. Priorita: Resend (HTTP) → SMTP → Discord webhook.
+    Odošle lead e-mailom na LEAD_TARGET_EMAILS / predvolené adresy.
+    Priorita doručenia: Resend (HTTP) → SMTP.
+    Discord webhook je len interná záloha pre ops — NIE je považovaný za doručenie klientovi.
     """
     target_emails = _target_emails()
-    subject = "NOVÝ KONTAKT z Chatbota!"
+    if not target_emails:
+        logger.error("Lead sa nepodarilo odoslať — chýba zoznam LEAD_TARGET_EMAILS.")
+        return False
+
+    subject = f"{subject_prefix}NOVÝ KONTAKT z Chatbota!"
     body = f"""Dobrý den,
 
 chatbot na webu zaznamenal nový kontakt.
@@ -256,21 +267,33 @@ TRANSKRIPT CELÉ KONVERZACE:
 (Tato zpráva je generována automaticky Česká Nádrž Botem.)
 """
 
+    email_sent = False
+
     if resend_configured():
         if await _send_via_resend(subject, body, target_emails):
-            return True
-        logger.warning("Resend zlyhal, skúšam záložné kanály…")
+            email_sent = True
+        else:
+            logger.warning("Resend zlyhal, skúšam SMTP…")
 
-    if smtp_configured():
+    if not email_sent and smtp_configured():
         if await _send_smtp_email(subject, body, target_emails):
-            return True
-        logger.warning("SMTP zlyhal, skúšam Discord…")
+            email_sent = True
+        else:
+            logger.warning("SMTP zlyhal.")
+
+    if not email_sent:
+        logger.error(
+            "Lead sa nepodarilo doručiť e-mailom na %s — skontrolujte RESEND_API_KEY / SMTP.",
+            ", ".join(target_emails),
+        )
+        if discord_configured():
+            await _send_discord_lead(
+                f"⚠️ E-MAIL LEADU ZLYHAL — {subject}",
+                f"Lead sa nepodarilo doručiť e-mailom na: {', '.join(target_emails)}\n\n{body}",
+            )
+        return False
 
     if discord_configured():
-        return await _send_discord_lead(subject, body)
+        await _send_discord_lead(subject, body)
 
-    logger.error(
-        "Lead sa nepodarilo odoslať — nastavte RESEND_API_KEY (email cez HTTPS) "
-        "alebo DISCORD_WEBHOOK_URL (okamžitá záloha)."
-    )
-    return False
+    return True

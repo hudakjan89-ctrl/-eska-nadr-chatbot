@@ -156,4 +156,65 @@ def load_recommended_urls(session_id: str) -> list:
     conn.close()
     return urls
 
+
+def load_session_transcript(session_id: str, include_lead_messages: bool = True) -> list:
+    """Načíta celú konverzáciu pre export leadu / doposlanie e-mailu."""
+    conn = _connect()
+    c = conn.cursor()
+    if include_lead_messages:
+        c.execute(
+            """SELECT role, content FROM messages
+               WHERE session_id = ?
+               ORDER BY id ASC""",
+            (session_id,),
+        )
+    else:
+        c.execute(
+            """SELECT role, content FROM messages
+               WHERE session_id = ?
+                 AND content NOT LIKE '[KONTAKTNÍ FORMULÁŘ]%'
+                 AND content NOT LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%'
+               ORDER BY id ASC""",
+            (session_id,),
+        )
+    rows = c.fetchall()
+    conn.close()
+
+    history = []
+    for role, content in rows:
+        llm_role = "assistant" if role == "bot" else "user"
+        history.append({"role": llm_role, "content": content})
+    return history
+
+
+def fetch_lead_messages(since: str = None, until: str = None) -> list:
+    """Vráti všetky lead správy z DB, voliteľne filtrované podľa dátumu."""
+    conn = _connect()
+    c = conn.cursor()
+    query = """SELECT id, session_id, content, timestamp
+               FROM messages
+               WHERE role='user'
+                 AND (content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%')"""
+    params = []
+    if since:
+        query += " AND datetime(timestamp) >= datetime(?)"
+        params.append(since)
+    if until:
+        query += " AND datetime(timestamp) <= datetime(?)"
+        params.append(until)
+    query += " ORDER BY id ASC"
+    c.execute(query, params)
+    rows = [
+        {
+            "id": row[0],
+            "session_id": row[1],
+            "content": row[2],
+            "timestamp": row[3],
+        }
+        for row in c.fetchall()
+    ]
+    conn.close()
+    return rows
+
+
 init_analytics_db()
