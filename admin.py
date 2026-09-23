@@ -17,8 +17,10 @@ from database import upsert_products, product_count
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 DASHBOARD_CACHE_KEY = "dashboard_snapshot_v1"
-DASHBOARD_CACHE_TTL_SECONDS = int(os.getenv("DASHBOARD_CACHE_TTL_SECONDS", "7200"))
-DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY", "")
+import app_config as app_cfg
+
+DASHBOARD_CACHE_TTL_SECONDS = app_cfg.DASHBOARD_CACHE_TTL_SECONDS
+DASHBOARD_API_KEY = app_cfg.DASHBOARD_API_KEY
 
 class EventIn(BaseModel):
     event_name: str
@@ -884,7 +886,7 @@ async def reindex_knowledge(request: Request):
         "sections_indexed": sections_indexed,
         "source": "github",
         "file_path": KNOWLEDGE_LOCAL_PATH,
-        "target": f"{os.getenv('GITHUB_OWNER', '')}/{os.getenv('GITHUB_REPO', '')}",
+        "target": f"{app_cfg.GITHUB_OWNER}/{app_cfg.GITHUB_REPO}",
     }
 
 @router.get("/dashboard/overview")

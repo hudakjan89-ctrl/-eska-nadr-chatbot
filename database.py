@@ -15,9 +15,11 @@ logger = logging.getLogger("ceska_nadrz.database")
 logger.info("Načítavam jazykový AI model (Qdrant)...")
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 
+import app_config as app_cfg
+
 _qdrant_path = os.getenv("QDRANT_PATH")
 if not _qdrant_path:
-    _data_dir = os.getenv("DATA_DIR", "data")
+    _data_dir = os.getenv("DATA_DIR", app_cfg.DATA_DIR)
     _qdrant_path = os.path.join(_data_dir, "qdrant_db")
 os.makedirs(_qdrant_path, exist_ok=True)
 logger.info("Qdrant path: %s", _qdrant_path)

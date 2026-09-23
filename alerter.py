@@ -6,11 +6,11 @@ import time
 
 logger = logging.getLogger("ceska_nadrz.alerter")
 
-import lead_email_config as lec
+import app_config as app_cfg
 
 def _discord_webhook_url() -> str:
-    return lec.effective_discord_webhook_url()
-ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "900"))
+    return app_cfg.effective_discord_webhook_url()
+ALERT_COOLDOWN_SECONDS = app_cfg.ALERT_COOLDOWN_SECONDS
 
 _last_alerts: dict[str, float] = {}
 

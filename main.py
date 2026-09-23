@@ -37,7 +37,7 @@ from logger import (
     DB_PATH, session_has_messages, session_has_event, load_session_messages, load_recommended_urls,
 )
 from alerter import fire_alert
-import lead_email_config as lead_email_cfg
+import app_config as app_cfg
 from mailer import (
     send_lead_email,
     resend_configured,
@@ -60,18 +60,18 @@ logger = logging.getLogger("ceska_nadrz.main")
 # session_id -> "passive" | "full" — prevents duplicate lead emails per session
 _lead_email_sent: dict[str, str] = {}
 
-LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.eurouter.ai/api/v1").rstrip("/")
-LLM_API_KEY = os.getenv("EUROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENROUTER_MODEL", "claude-opus-4-7")
-LLM_FALLBACK_MODEL = os.getenv("LLM_FALLBACK_MODEL", "").strip()
+LLM_API_BASE_URL = app_cfg.LLM_API_BASE_URL.rstrip("/")
+LLM_API_KEY = app_cfg.EUROUTER_API_KEY
+LLM_MODEL = app_cfg.LLM_MODEL
+LLM_FALLBACK_MODEL = app_cfg.LLM_FALLBACK_MODEL.strip()
 LLM_CHAT_URL = f"{LLM_API_BASE_URL}/chat/completions"
-LLM_RETRY_ATTEMPTS = int(os.getenv("LLM_RETRY_ATTEMPTS", "4"))
+LLM_RETRY_ATTEMPTS = app_cfg.LLM_RETRY_ATTEMPTS
 LLM_RETRYABLE_STATUS_CODES = {429, 502, 503, 529}
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = app_cfg.allowed_origins_list()
 
-WIDGET_VERSION = "9.4.19"
+WIDGET_VERSION = "9.4.20"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
+WIDGET_PUBLIC_BASE = app_cfg.WIDGET_PUBLIC_BASE.rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
     "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
     "Pragma": "no-cache",
@@ -422,8 +422,8 @@ async def sync_knowledge_task():
 
 async def purge_cloudflare_widget_cache():
     """Po redeployi vymaže Cloudflare cache widgetu — zákazník nemusí nič meniť."""
-    zone_id = os.getenv("CLOUDFLARE_ZONE_ID", "").strip()
-    api_token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    zone_id = app_cfg.CLOUDFLARE_ZONE_ID.strip()
+    api_token = app_cfg.CLOUDFLARE_API_TOKEN.strip()
     if not zone_id or not api_token:
         logger.info(
             "Cloudflare purge preskočený (CLOUDFLARE_ZONE_ID / CLOUDFLARE_API_TOKEN nie sú nastavené)."
@@ -474,7 +474,7 @@ async def startup_event():
     else:
         logger.warning(
             "Lead e-maily NIE SÚ nakonfigurované — doplňte SMTP_PASS alebo RESEND_API_KEY "
-            "v lead_email_config.py. Cieľové adresy: %s. Discord je len interná notifikácia.",
+            "v app_config.py (SMTP_PASS / RESEND_API_KEY). Cieľové adresy: %s.",
             ", ".join(targets) if targets else "(prázdne)",
         )
     if webhook_configured():
@@ -490,9 +490,9 @@ async def startup_event():
     if is_github_configured():
         logger.info(
             "Knowledge base: GitHub %s/%s@%s (sync pri štarte ak cache prázdna + každých 6h)",
-            os.getenv("GITHUB_OWNER", "hudakjan89-ctrl"),
-            os.getenv("GITHUB_REPO", "ceskanadrz-knowledge"),
-            os.getenv("GITHUB_BRANCH", "main"),
+            app_cfg.GITHUB_OWNER,
+            app_cfg.GITHUB_REPO,
+            app_cfg.GITHUB_BRANCH,
         )
         logger.info(github_token_hint())
     else:
@@ -520,8 +520,8 @@ async def startup_event():
     scheduler.add_job(
         process_lead_email_outbox,
         'interval',
-        minutes=lead_email_cfg.LEAD_EMAIL_RETRY_INTERVAL_MIN,
-        kwargs={"limit": lead_email_cfg.LEAD_EMAIL_RETRY_BATCH},
+        minutes=app_cfg.LEAD_EMAIL_RETRY_INTERVAL_MIN,
+        kwargs={"limit": app_cfg.LEAD_EMAIL_RETRY_BATCH},
     )
     scheduler.start()
     logger.info("Naplanovana uloha update_database_task - produkty z XML (kazdych 6 hodin).")

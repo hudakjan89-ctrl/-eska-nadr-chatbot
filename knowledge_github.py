@@ -3,25 +3,23 @@ import base64
 import logging
 import httpx
 
+import app_config as app_cfg
+
 logger = logging.getLogger("ceska_nadrz.knowledge_github")
 
 KNOWLEDGE_FILE_NAME = "knowledge_base.md"
-_default_data_dir = os.getenv("DATA_DIR", "").strip()
-KNOWLEDGE_LOCAL_PATH = os.getenv(
-    "KNOWLEDGE_LOCAL_PATH",
-    os.path.join(_default_data_dir, KNOWLEDGE_FILE_NAME) if _default_data_dir else KNOWLEDGE_FILE_NAME,
-)
-KNOWLEDGE_SEED_PATH = os.getenv("KNOWLEDGE_SEED_PATH", "knowledge_seed.md")
+KNOWLEDGE_LOCAL_PATH = app_cfg.KNOWLEDGE_LOCAL_PATH
+KNOWLEDGE_SEED_PATH = app_cfg.KNOWLEDGE_SEED_PATH
 
 MIN_KNOWLEDGE_BYTES = 200
 
 
 def _github_settings() -> dict:
     return {
-        "token": os.getenv("GITHUB_TOKEN", "").strip(),
-        "owner": os.getenv("GITHUB_OWNER", "hudakjan89-ctrl").strip(),
-        "repo": os.getenv("GITHUB_REPO", "ceskanadrz-knowledge").strip(),
-        "branch": os.getenv("GITHUB_BRANCH", "main").strip() or "main",
+        "token": app_cfg.effective_github_token(),
+        "owner": app_cfg.GITHUB_OWNER.strip(),
+        "repo": app_cfg.GITHUB_REPO.strip(),
+        "branch": app_cfg.GITHUB_BRANCH.strip() or "main",
     }
 
 

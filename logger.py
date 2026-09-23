@@ -5,9 +5,28 @@ import json
 import hashlib
 from pathlib import Path
 
-_DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
-_DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = os.getenv("ANALYTICS_DB_PATH", str(_DATA_DIR / "analytics.db"))
+import app_config as app_cfg
+
+def _resolve_data_dir() -> Path:
+    override = os.getenv("DATA_DIR", "").strip()
+    if override:
+        return Path(override)
+    preferred = Path(app_cfg.DATA_DIR)
+    try:
+        preferred.mkdir(parents=True, exist_ok=True)
+        return preferred
+    except OSError:
+        fallback = Path("data")
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+_DATA_DIR = _resolve_data_dir()
+DB_PATH = os.getenv("ANALYTICS_DB_PATH", "").strip() or (
+    app_cfg.ANALYTICS_DB_PATH
+    if _DATA_DIR.as_posix() == app_cfg.DATA_DIR
+    else str(_DATA_DIR / "analytics.db")
+)
 
 
 def _connect():

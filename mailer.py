@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 import httpx
 
-import lead_email_config as lec
+import app_config as lec
 
 logger = logging.getLogger("ceska_nadrz.mailer")
 
@@ -91,11 +91,11 @@ def email_delivery_configured() -> bool:
 
 def _smtp_settings():
     """Načíta SMTP nastavenia pri každom odoslaní (kód + voliteľný .env fallback)."""
-    host = (lec.SMTP_HOST or os.getenv("SMTP_HOST", "")).strip()
-    port_raw = str(lec.SMTP_PORT or os.getenv("SMTP_PORT", "587")).strip() or "587"
-    user = (lec.SMTP_USER or os.getenv("SMTP_USER", "")).strip()
+    host = lec.SMTP_HOST.strip()
+    port_raw = str(lec.SMTP_PORT).strip() or "587"
+    user = lec.SMTP_USER.strip()
     password = lec.effective_smtp_pass()
-    from_email = (lec.FROM_EMAIL or os.getenv("FROM_EMAIL", user)).strip() or user
+    from_email = (lec.FROM_EMAIL or user).strip() or user
     try:
         port = int(port_raw)
     except ValueError:
