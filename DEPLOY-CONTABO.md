@@ -111,18 +111,15 @@ Reštart služby po `git pull`.
 
 ### Lead e-maily (dôležité)
 
-Bez funkčného odosielania leadov chatbot ukladá kontakty do DB a do fronty `lead_email_outbox`, ale klient ich nedostane na e-mail.
+Všetko je v súbore **`lead_email_config.py`** (Shoptet SMTP `mbox.myshoptet.com`, príjemcovia, odosielateľ `obchod@ceskanadrz.cz`).
 
-| Premenná | Popis |
-|----------|--------|
-| `RESEND_API_KEY` | **Odporúčané** — odosielanie cez HTTPS (funguje z Dockeru na Contabo) |
-| `RESEND_FROM_EMAIL` | Odosielateľ z **overenej domény** v Resend, napr. `Ceska Nadrz <obchod@ceskanadrz.cz>` |
-| `LEAD_TARGET_EMAILS` | Príjemcovia (čiarkou), predvolene obchod@, info@, janhudak748@gmail.com |
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Záloha — často blokované na hostingu |
-| `LEAD_WEBHOOK_URL` | Voliteľná HTTP záloha (Make/Zapier) |
-| `DISCORD_WEBHOOK_URL` | Len interná notifikácia pre vás — **nie** doručenie klientovi |
+Do toho súboru doplňte aspoň jedno z:
+- `SMTP_PASS` — heslo schránky obchod@ v Shoptet admin
+- alebo `RESEND_API_KEY` — kľúč z Resend (doména musí byť overená)
 
-**Častá chyba:** `onboarding@resend.dev` doručí e-mail len vlastníkovi Resend účtu, nie na `obchod@ceskanadrz.cz`. Overte doménu `ceskanadrz.cz` v [Resend](https://resend.com/domains) a nastavte `RESEND_FROM_EMAIL`.
+Voliteľne `DISCORD_WEBHOOK_URL` pre interné alerty.
+
+Starý `.env` na serveri stále funguje ako záloha, ak polia v `lead_email_config.py` necháte prázdne.
 
 Po deployi skontrolujte logy:
 

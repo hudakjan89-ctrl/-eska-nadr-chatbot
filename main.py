@@ -37,6 +37,7 @@ from logger import (
     DB_PATH, session_has_messages, session_has_event, load_session_messages, load_recommended_urls,
 )
 from alerter import fire_alert
+import lead_email_config as lead_email_cfg
 from mailer import (
     send_lead_email,
     resend_configured,
@@ -68,7 +69,7 @@ LLM_RETRY_ATTEMPTS = int(os.getenv("LLM_RETRY_ATTEMPTS", "4"))
 LLM_RETRYABLE_STATUS_CODES = {429, 502, 503, 529}
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.4.18"
+WIDGET_VERSION = "9.4.19"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -472,8 +473,8 @@ async def startup_event():
         )
     else:
         logger.warning(
-            "Lead e-maily NIE SÚ nakonfigurované — nastavte RESEND_API_KEY alebo SMTP. "
-            "Cieľové adresy: %s. Discord webhook doručí len internú notifikáciu, nie e-mail klientovi.",
+            "Lead e-maily NIE SÚ nakonfigurované — doplňte SMTP_PASS alebo RESEND_API_KEY "
+            "v lead_email_config.py. Cieľové adresy: %s. Discord je len interná notifikácia.",
             ", ".join(targets) if targets else "(prázdne)",
         )
     if webhook_configured():
@@ -519,8 +520,8 @@ async def startup_event():
     scheduler.add_job(
         process_lead_email_outbox,
         'interval',
-        minutes=int(os.getenv("LEAD_EMAIL_RETRY_INTERVAL_MIN", "3")),
-        kwargs={"limit": int(os.getenv("LEAD_EMAIL_RETRY_BATCH", "15"))},
+        minutes=lead_email_cfg.LEAD_EMAIL_RETRY_INTERVAL_MIN,
+        kwargs={"limit": lead_email_cfg.LEAD_EMAIL_RETRY_BATCH},
     )
     scheduler.start()
     logger.info("Naplanovana uloha update_database_task - produkty z XML (kazdych 6 hodin).")

@@ -6,7 +6,10 @@ import time
 
 logger = logging.getLogger("ceska_nadrz.alerter")
 
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+import lead_email_config as lec
+
+def _discord_webhook_url() -> str:
+    return lec.effective_discord_webhook_url()
 ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "900"))
 
 _last_alerts: dict[str, float] = {}
@@ -14,13 +17,14 @@ _last_alerts: dict[str, float] = {}
 
 async def send_discord_alert(error_message: str):
     """Odošle upozornenie na Discord webhook, ak je nastavený."""
-    if not DISCORD_WEBHOOK_URL:
+    webhook_url = _discord_webhook_url()
+    if not webhook_url:
         return
 
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
-                DISCORD_WEBHOOK_URL,
+                webhook_url,
                 json={
                     "content": f"🚨 **Kritická chyba (Česká Nádrž Bot)** 🚨\n```\n{error_message}\n```"
                 },

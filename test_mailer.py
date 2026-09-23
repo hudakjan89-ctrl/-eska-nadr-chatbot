@@ -91,9 +91,11 @@ class TestSendLeadEmailOutbox(unittest.IsolatedAsyncioTestCase):
 
 class TestAuditConfiguration(unittest.IsolatedAsyncioTestCase):
     async def test_warns_on_resend_dev_from_address(self):
-        os.environ["RESEND_API_KEY"] = "re_test"
-        os.environ["RESEND_FROM_EMAIL"] = "Test <onboarding@resend.dev>"
-        with patch("httpx.AsyncClient") as mock_client_cls:
+        with patch("lead_email_config.effective_resend_api_key", return_value="re_test"), patch(
+            "lead_email_config.RESEND_FROM_EMAIL", "Test <onboarding@resend.dev>"
+        ), patch("mailer.lec.RESEND_FROM_EMAIL", "Test <onboarding@resend.dev>"), patch(
+            "mailer._from_email", return_value="Test <onboarding@resend.dev>"
+        ), patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None

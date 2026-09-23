@@ -10,17 +10,13 @@ from datetime import datetime, timedelta
 
 import httpx
 
+import lead_email_config as lec
+
 logger = logging.getLogger("ceska_nadrz.mailer")
 
-DEFAULT_TARGET_EMAILS = [
-    "obchod@ceskanadrz.cz",
-    "info@ceskanadrz.cz",
-    "janhudak748@gmail.com",
-]
-
 RETRYABLE_HTTP_STATUS = {408, 429, 500, 502, 503, 504}
-HTTP_MAX_ATTEMPTS = int(os.getenv("LEAD_EMAIL_HTTP_RETRIES", "4"))
-SMTP_MAX_ATTEMPTS = int(os.getenv("LEAD_EMAIL_SMTP_RETRIES", "2"))
+HTTP_MAX_ATTEMPTS = lec.LEAD_EMAIL_HTTP_RETRIES
+SMTP_MAX_ATTEMPTS = lec.LEAD_EMAIL_SMTP_RETRIES
 
 OUTBOX_RETRY_DELAYS_SEC = [
     60,
@@ -46,11 +42,7 @@ class DeliveryResult:
 
 
 def _target_emails() -> list:
-    targets_raw = os.getenv("LEAD_TARGET_EMAILS", "").strip()
-    if targets_raw:
-        raw = [e.strip() for e in targets_raw.split(",") if e.strip()]
-    else:
-        raw = list(DEFAULT_TARGET_EMAILS)
+    raw = lec.effective_target_emails()
 
     seen: set[str] = set()
     deduped: list[str] = []
@@ -64,12 +56,7 @@ def _target_emails() -> list:
 
 
 def _from_email() -> str:
-    return (
-        os.getenv("RESEND_FROM_EMAIL", "").strip()
-        or os.getenv("FROM_EMAIL", "").strip()
-        or os.getenv("SMTP_USER", "").strip()
-        or "Ceska Nadrz Chatbot <onboarding@resend.dev>"
-    )
+    return lec.RESEND_FROM_EMAIL or lec.FROM_EMAIL or lec.SMTP_USER
 
 
 def _extract_email_address(from_header: str) -> str:
@@ -80,22 +67,22 @@ def _extract_email_address(from_header: str) -> str:
 
 
 def resend_configured() -> bool:
-    return bool(os.getenv("RESEND_API_KEY", "").strip())
+    return bool(lec.effective_resend_api_key())
 
 
 def smtp_configured() -> bool:
-    host = os.getenv("SMTP_HOST", "").strip()
-    user = os.getenv("SMTP_USER", "").strip()
-    password = os.getenv("SMTP_PASS", "").strip()
+    if not lec.SMTP_ENABLED:
+        return False
+    host, _, user, password, _ = _smtp_settings()
     return bool(host and user and password)
 
 
 def discord_configured() -> bool:
-    return bool(os.getenv("DISCORD_WEBHOOK_URL", "").strip())
+    return bool(lec.effective_discord_webhook_url())
 
 
 def webhook_configured() -> bool:
-    return bool(os.getenv("LEAD_WEBHOOK_URL", "").strip())
+    return bool(lec.effective_lead_webhook_url())
 
 
 def email_delivery_configured() -> bool:
@@ -103,12 +90,12 @@ def email_delivery_configured() -> bool:
 
 
 def _smtp_settings():
-    """Načíta SMTP nastavenia pri každom odoslaní."""
-    host = os.getenv("SMTP_HOST", "").strip()
-    port_raw = os.getenv("SMTP_PORT", "587").strip() or "587"
-    user = os.getenv("SMTP_USER", "").strip()
-    password = os.getenv("SMTP_PASS", "").strip()
-    from_email = os.getenv("FROM_EMAIL", user).strip() or user
+    """Načíta SMTP nastavenia pri každom odoslaní (kód + voliteľný .env fallback)."""
+    host = (lec.SMTP_HOST or os.getenv("SMTP_HOST", "")).strip()
+    port_raw = str(lec.SMTP_PORT or os.getenv("SMTP_PORT", "587")).strip() or "587"
+    user = (lec.SMTP_USER or os.getenv("SMTP_USER", "")).strip()
+    password = lec.effective_smtp_pass()
+    from_email = (lec.FROM_EMAIL or os.getenv("FROM_EMAIL", user)).strip() or user
     try:
         port = int(port_raw)
     except ValueError:
@@ -228,9 +215,9 @@ async def _http_post_json(url: str, *, headers: dict, json_payload: dict, timeou
 
 
 async def _send_via_resend_one(subject: str, body: str, to_address: str) -> tuple[bool, str]:
-    api_key = os.getenv("RESEND_API_KEY", "").strip()
+    api_key = lec.effective_resend_api_key()
     if not api_key:
-        return False, "RESEND_API_KEY nie je nastavený"
+        return False, "RESEND_API_KEY nie je nastavený (lead_email_config.py alebo .env)"
 
     payload = {
         "from": _from_email(),
@@ -285,7 +272,7 @@ async def _send_via_resend(subject: str, body: str, to_addresses: list) -> Deliv
 
 
 async def _send_discord_lead(subject: str, body: str) -> bool:
-    webhook_url = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
+    webhook_url = lec.effective_discord_webhook_url()
     if not webhook_url:
         return False
 
@@ -309,7 +296,7 @@ async def _send_discord_lead(subject: str, body: str) -> bool:
 
 
 async def _send_via_webhook(subject: str, body: str, to_addresses: list, lead_data: str) -> DeliveryResult:
-    webhook_url = os.getenv("LEAD_WEBHOOK_URL", "").strip()
+    webhook_url = lec.effective_lead_webhook_url()
     if not webhook_url:
         return DeliveryResult(ok=False, channel="webhook", last_error="LEAD_WEBHOOK_URL nie je nastavený")
 
@@ -356,7 +343,7 @@ def _smtp_send_one_sync(
     msg["To"] = to_address
 
     context = ssl.create_default_context()
-    timeout = int(os.getenv("SMTP_TIMEOUT", "45"))
+    timeout = int(lec.SMTP_TIMEOUT)
     if port == 465:
         with smtplib.SMTP_SSL(smtp_host, port, context=context, timeout=timeout) as server:
             server.login(smtp_user, smtp_pass)
@@ -457,23 +444,23 @@ async def _deliver_lead_email(subject: str, body: str, lead_data: str, to_addres
     errors: list[str] = []
     channel_used = ""
 
-    if resend_configured():
-        result = await _send_via_resend(subject, body, remaining)
+    if smtp_configured():
+        result = await _send_smtp_email(subject, body, remaining)
         all_delivered.extend(result.delivered_to)
         remaining = result.failed_to
         if result.delivered_to:
-            channel_used = "resend"
+            channel_used = "smtp"
         if result.last_error:
             errors.append(result.last_error)
         if not remaining:
             return DeliveryResult(ok=True, channel=channel_used, delivered_to=all_delivered)
 
-    if remaining and smtp_configured():
-        result = await _send_smtp_email(subject, body, remaining)
+    if remaining and resend_configured():
+        result = await _send_via_resend(subject, body, remaining)
         all_delivered.extend(result.delivered_to)
         remaining = result.failed_to
         if result.delivered_to:
-            channel_used = channel_used or "smtp"
+            channel_used = channel_used or "resend"
         if result.last_error:
             errors.append(result.last_error)
         if not remaining:
@@ -515,7 +502,7 @@ async def audit_email_configuration() -> list[str]:
         )
 
     if resend_configured():
-        api_key = os.getenv("RESEND_API_KEY", "").strip()
+        api_key = lec.effective_resend_api_key()
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
