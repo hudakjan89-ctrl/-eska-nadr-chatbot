@@ -59,7 +59,7 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_USER = "eniqagency@gmail.com"
 # Google App Password (4×4 znakov — medzery sa pri odosielaní odstránia)
-SMTP_PASS = "xofp ckyb twpt ttdl"
+SMTP_PASS = "cdar kedt jlbp qseq"
 
 LEAD_WEBHOOK_URL = ""
 

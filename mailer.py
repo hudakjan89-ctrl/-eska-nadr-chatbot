@@ -543,6 +543,53 @@ async def audit_email_configuration() -> list[str]:
     return warnings
 
 
+def _smtp_login_only_sync() -> None:
+    """Len overí prihlásenie — bez odoslania mailu."""
+    smtp_host, smtp_port, smtp_user, smtp_pass, _ = _smtp_settings()
+    if not smtp_host or not smtp_user or not smtp_pass:
+        raise RuntimeError("SMTP nie je kompletne nakonfigurovaný")
+
+    context = ssl.create_default_context()
+    timeout = int(lec.SMTP_TIMEOUT)
+    last_error: Exception | None = None
+    for port in (smtp_port, 587, 465):
+        try:
+            if port == 465:
+                with smtplib.SMTP_SSL(smtp_host, port, context=context, timeout=timeout) as server:
+                    server.login(smtp_user, smtp_pass)
+            else:
+                with smtplib.SMTP(smtp_host, port, timeout=timeout) as server:
+                    server.ehlo()
+                    server.starttls(context=context)
+                    server.ehlo()
+                    server.login(smtp_user, smtp_pass)
+            return
+        except Exception as exc:
+            last_error = exc
+            continue
+    if last_error:
+        raise last_error
+    raise RuntimeError("SMTP login zlyhal")
+
+
+async def verify_smtp_login() -> tuple[bool, str]:
+    """Pri štarte overí, či Gmail/SMTP heslo funguje."""
+    if not smtp_configured():
+        return True, ""
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, _smtp_login_only_sync)
+        return True, ""
+    except smtplib.SMTPAuthenticationError as exc:
+        return (
+            False,
+            "Gmail odmietol heslo (535 BadCredentials) — vygenerujte nové App Password "
+            f"a upravte SMTP_PASS v app_config.py. Detail: {exc}",
+        )
+    except Exception as exc:
+        return False, str(exc)
+
+
 def outbox_retry_delay(attempts: int) -> int:
     if attempts < len(OUTBOX_RETRY_DELAYS_SEC):
         return OUTBOX_RETRY_DELAYS_SEC[attempts]

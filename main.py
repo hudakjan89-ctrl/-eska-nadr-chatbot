@@ -48,6 +48,7 @@ from mailer import (
     audit_email_configuration,
     bootstrap_lead_delivery,
     process_lead_email_outbox,
+    verify_smtp_login,
 )
 
 logging.basicConfig(
