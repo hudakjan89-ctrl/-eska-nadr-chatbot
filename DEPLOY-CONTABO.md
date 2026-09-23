@@ -108,3 +108,30 @@ Reštart služby po `git pull`.
 |----------|------------|-------|
 | `DATA_DIR` | `data` (lokálne), `/data` (Docker) | Priečinok pre analytics.db a qdrant_db |
 | `ANALYTICS_DB_PATH` | `{DATA_DIR}/analytics.db` | Priama cesta k SQLite súboru |
+
+### Lead e-maily (dôležité)
+
+Bez funkčného odosielania leadov chatbot ukladá kontakty do DB a do fronty `lead_email_outbox`, ale klient ich nedostane na e-mail.
+
+| Premenná | Popis |
+|----------|--------|
+| `RESEND_API_KEY` | **Odporúčané** — odosielanie cez HTTPS (funguje z Dockeru na Contabo) |
+| `RESEND_FROM_EMAIL` | Odosielateľ z **overenej domény** v Resend, napr. `Ceska Nadrz <obchod@ceskanadrz.cz>` |
+| `LEAD_TARGET_EMAILS` | Príjemcovia (čiarkou), predvolene obchod@, info@, janhudak748@gmail.com |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Záloha — často blokované na hostingu |
+| `LEAD_WEBHOOK_URL` | Voliteľná HTTP záloha (Make/Zapier) |
+| `DISCORD_WEBHOOK_URL` | Len interná notifikácia pre vás — **nie** doručenie klientovi |
+
+**Častá chyba:** `onboarding@resend.dev` doručí e-mail len vlastníkovi Resend účtu, nie na `obchod@ceskanadrz.cz`. Overte doménu `ceskanadrz.cz` v [Resend](https://resend.com/domains) a nastavte `RESEND_FROM_EMAIL`.
+
+Po deployi skontrolujte logy:
+
+```bash
+docker compose logs --tail=80 | grep -i lead
+```
+
+Doposlanie zmeškaných leadov z DB:
+
+```bash
+docker compose exec chatbot python scripts/resend_missed_leads.py --since 2026-01-01
+```

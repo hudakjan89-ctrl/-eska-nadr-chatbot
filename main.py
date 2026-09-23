@@ -37,7 +37,17 @@ from logger import (
     DB_PATH, session_has_messages, session_has_event, load_session_messages, load_recommended_urls,
 )
 from alerter import fire_alert
-from mailer import send_lead_email, resend_configured, smtp_configured, discord_configured, _target_emails
+from mailer import (
+    send_lead_email,
+    resend_configured,
+    smtp_configured,
+    discord_configured,
+    webhook_configured,
+    _target_emails,
+    audit_email_configuration,
+    bootstrap_lead_delivery,
+    process_lead_email_outbox,
+)
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -58,7 +68,7 @@ LLM_RETRY_ATTEMPTS = int(os.getenv("LLM_RETRY_ATTEMPTS", "4"))
 LLM_RETRYABLE_STATUS_CODES = {429, 502, 503, 529}
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
-WIDGET_VERSION = "9.4.17"
+WIDGET_VERSION = "9.4.18"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 WIDGET_PUBLIC_BASE = os.getenv("WIDGET_PUBLIC_BASE", "https://nadrz.eniq.eu").rstrip("/")
 WIDGET_NO_CACHE_HEADERS = {
@@ -466,11 +476,16 @@ async def startup_event():
             "Cieľové adresy: %s. Discord webhook doručí len internú notifikáciu, nie e-mail klientovi.",
             ", ".join(targets) if targets else "(prázdne)",
         )
-    if discord_configured() and not (resend_configured() or smtp_configured()):
+    if webhook_configured():
+        logger.info("Lead záloha: LEAD_WEBHOOK_URL je nastavený.")
+    if discord_configured() and not (resend_configured() or smtp_configured() or webhook_configured()):
         logger.warning(
-            "DISCORD_WEBHOOK_URL je nastavený, ale bez Resend/SMTP sa leady na %s neodosielajú.",
+            "DISCORD_WEBHOOK_URL je nastavený, ale bez Resend/SMTP/webhook sa leady na %s neodosielajú.",
             ", ".join(targets) if targets else "klientov",
         )
+    for warning in await audit_email_configuration():
+        logger.error("Lead e-mail konfigurácia: %s", warning)
+    asyncio.create_task(bootstrap_lead_delivery())
     if is_github_configured():
         logger.info(
             "Knowledge base: GitHub %s/%s@%s (sync pri štarte ak cache prázdna + každých 6h)",
@@ -501,6 +516,12 @@ async def startup_event():
     scheduler.add_job(update_database_task, 'interval', hours=6)
     scheduler.add_job(sync_knowledge_task, 'interval', hours=6)
     scheduler.add_job(refresh_dashboard_cache, 'interval', hours=2)
+    scheduler.add_job(
+        process_lead_email_outbox,
+        'interval',
+        minutes=int(os.getenv("LEAD_EMAIL_RETRY_INTERVAL_MIN", "3")),
+        kwargs={"limit": int(os.getenv("LEAD_EMAIL_RETRY_BATCH", "15"))},
+    )
     scheduler.start()
     logger.info("Naplanovana uloha update_database_task - produkty z XML (kazdych 6 hodin).")
     logger.info("Naplanovana uloha sync_knowledge_task (kazdych 6 hodin).")
@@ -523,6 +544,12 @@ async def health_check():
         "product_index_ready": is_product_index_ready(),
         "knowledge_sections": knowledge_section_count(),
         "knowledge_index_ready": is_knowledge_index_ready(),
+        "lead_email": {
+            "resend": resend_configured(),
+            "smtp": smtp_configured(),
+            "webhook": webhook_configured(),
+            "targets": _target_emails(),
+        },
     }
 
 def _llm_headers() -> dict:
@@ -771,7 +798,11 @@ async def chat(request: Request, chat_req: ChatRequest):
                     force=True,
                 )
             else:
-                email_sent = await send_lead_email(chat_req.message, history)
+                email_sent = await send_lead_email(
+                    chat_req.message,
+                    history,
+                    session_id=session_id,
+                )
                 if email_sent:
                     _lead_email_sent[session_id] = "full" if is_full_form else "passive"
                 else:

@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import hashlib
 from pathlib import Path
@@ -37,6 +37,19 @@ def init_analytics_db():
                   metadata TEXT,
                   timestamp DATETIME,
                   sync_status TEXT DEFAULT 'pending')''')
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS lead_email_outbox (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               session_id TEXT NOT NULL UNIQUE,
+               lead_content TEXT NOT NULL,
+               subject_prefix TEXT DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'pending',
+               attempts INTEGER NOT NULL DEFAULT 0,
+               last_error TEXT,
+               created_at DATETIME NOT NULL,
+               next_retry_at DATETIME NOT NULL,
+               delivered_at DATETIME)"""
+    )
     conn.commit()
     conn.close()
 
@@ -215,6 +228,188 @@ def fetch_lead_messages(since: str = None, until: str = None) -> list:
     ]
     conn.close()
     return rows
+
+
+def session_lead_email_delivered(session_id: str) -> bool:
+    return session_has_event(session_id, "lead_email_delivered")
+
+
+def upsert_lead_email_outbox(
+    session_id: str,
+    lead_content: str,
+    *,
+    subject_prefix: str = "",
+    last_error: str | None = None,
+):
+    now = datetime.now()
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """INSERT INTO lead_email_outbox
+           (session_id, lead_content, subject_prefix, status, attempts, last_error, created_at, next_retry_at)
+           VALUES (?, ?, ?, 'pending', 0, ?, ?, ?)
+           ON CONFLICT(session_id) DO UPDATE SET
+             lead_content = excluded.lead_content,
+             subject_prefix = excluded.subject_prefix,
+             last_error = excluded.last_error,
+             next_retry_at = excluded.next_retry_at,
+             status = CASE
+               WHEN lead_email_outbox.status = 'sent' THEN 'sent'
+               ELSE 'pending'
+             END
+           WHERE lead_email_outbox.status != 'sent'""",
+        (session_id, lead_content, subject_prefix, last_error, now, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def mark_lead_outbox_delivered(session_id: str):
+    now = datetime.now()
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """UPDATE lead_email_outbox
+           SET status = 'sent', delivered_at = ?, next_retry_at = ?
+           WHERE session_id = ?""",
+        (now, now, session_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+_OUTBOX_RETRY_DELAYS_SEC = [
+    60, 120, 300, 600, 1800, 3600, 7200, 14400, 28800, 43200,
+]
+
+
+def _outbox_retry_delay(attempts: int) -> int:
+    if attempts < len(_OUTBOX_RETRY_DELAYS_SEC):
+        return _OUTBOX_RETRY_DELAYS_SEC[attempts]
+    return _OUTBOX_RETRY_DELAYS_SEC[-1]
+
+
+def record_lead_outbox_failure(session_id: str, error: str):
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        "SELECT attempts FROM lead_email_outbox WHERE session_id = ? AND status = 'pending'",
+        (session_id,),
+    )
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return
+    attempts = int(row[0]) + 1
+    delay = _outbox_retry_delay(attempts - 1)
+    next_retry = datetime.now() + timedelta(seconds=delay)
+    c.execute(
+        """UPDATE lead_email_outbox
+           SET attempts = ?, last_error = ?, next_retry_at = ?
+           WHERE session_id = ? AND status = 'pending'""",
+        (attempts, (error or "")[:2000], next_retry, session_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def fetch_outbox_ready_for_retry(limit: int = 15) -> list[dict]:
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """SELECT session_id, lead_content, subject_prefix, attempts, last_error
+           FROM lead_email_outbox
+           WHERE status = 'pending'
+             AND datetime(next_retry_at) <= datetime('now')
+             AND attempts < 25
+           ORDER BY next_retry_at ASC, id ASC
+           LIMIT ?""",
+        (limit,),
+    )
+    rows = [
+        {
+            "session_id": row[0],
+            "lead_content": row[1],
+            "subject_prefix": row[2] or "",
+            "attempts": row[3] or 0,
+            "last_error": row[4],
+        }
+        for row in c.fetchall()
+    ]
+    conn.close()
+    return rows
+
+
+def _pick_best_lead_content(rows: list[tuple]) -> str | None:
+    """Preferuje plný formulár pred pasívnym záchytom."""
+    full = None
+    passive = None
+    for content, in rows:
+        if content.startswith("[KONTAKTNÍ FORMULÁŘ]"):
+            full = content
+        elif content.startswith("[PASIVNÍ ZÁCHYT KONTAKTU]") and passive is None:
+            passive = content
+    return full or passive
+
+
+def sync_undelivered_leads_to_outbox() -> int:
+    """
+    Nájde session s lead správou bez udalosti lead_email_delivered a zaradí do outboxu.
+    Vráti počet novo pridaných / aktualizovaných záznamov.
+    """
+    conn = _connect()
+    c = conn.cursor()
+    c.execute(
+        """SELECT DISTINCT session_id FROM messages
+           WHERE role = 'user'
+             AND (content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%')"""
+    )
+    session_ids = [row[0] for row in c.fetchall()]
+    added = 0
+    for session_id in session_ids:
+        if session_lead_email_delivered(session_id):
+            continue
+        c.execute(
+            """SELECT 1 FROM lead_email_outbox
+               WHERE session_id = ? AND status = 'sent' LIMIT 1""",
+            (session_id,),
+        )
+        if c.fetchone():
+            continue
+        c.execute(
+            """SELECT content FROM messages
+               WHERE session_id = ? AND role = 'user'
+                 AND (content LIKE '[KONTAKTNÍ FORMULÁŘ]%' OR content LIKE '[PASIVNÍ ZÁCHYT KONTAKTU]%')
+               ORDER BY id ASC""",
+            (session_id,),
+        )
+        lead_content = _pick_best_lead_content(c.fetchall())
+        if not lead_content:
+            continue
+        c.execute(
+            "SELECT 1 FROM lead_email_outbox WHERE session_id = ? LIMIT 1",
+            (session_id,),
+        )
+        exists = c.fetchone() is not None
+        now = datetime.now()
+        if exists:
+            c.execute(
+                """UPDATE lead_email_outbox
+                   SET lead_content = ?, status = 'pending', next_retry_at = ?
+                   WHERE session_id = ? AND status != 'sent'""",
+                (lead_content, now, session_id),
+            )
+        else:
+            c.execute(
+                """INSERT INTO lead_email_outbox
+                   (session_id, lead_content, subject_prefix, status, attempts, last_error, created_at, next_retry_at)
+                   VALUES (?, ?, '', 'pending', 0, NULL, ?, ?)""",
+                (session_id, lead_content, now, now),
+            )
+        added += 1
+    conn.commit()
+    conn.close()
+    return added
 
 
 init_analytics_db()

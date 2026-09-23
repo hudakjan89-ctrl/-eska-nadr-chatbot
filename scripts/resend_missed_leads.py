@@ -104,6 +104,7 @@ async def _resend_leads(
             lead["content"],
             history,
             subject_prefix=subject_prefix,
+            session_id=session_id,
         )
         if ok:
             sent += 1
